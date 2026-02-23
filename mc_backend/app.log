@@ -1,0 +1,48 @@
+2026-02-01T18:59:18.118Z: 🔒 CORS configured for origins: http://localhost:5173, http://localhost:8080
+2026-02-01T18:59:18.121Z: 🚀 Starting Mobile Care Backend...
+2026-02-01T18:59:18.122Z: 🌍 Environment: development
+2026-02-01T18:59:18.122Z: 💾 Database: Configured
+2026-02-01T18:59:18.122Z: ⏳ Connecting to database...
+2026-02-01T18:59:18.199Z: ✅ Database connected successfully
+2026-02-01T18:59:18.226Z: (node:4016) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-02-01T18:59:18.412Z: 🔒 CORS configured for origins: http://localhost:5173, http://localhost:8080
+2026-02-01T18:59:18.421Z: 🚀 Starting Mobile Care Backend...
+2026-02-01T18:59:18.422Z: 🌍 Environment: development
+2026-02-01T18:59:18.423Z: 💾 Database: Configured
+2026-02-01T18:59:18.424Z: ⏳ Connecting to database...
+2026-02-01T18:59:18.575Z: ✅ Database connected successfully
+2026-02-01T18:59:18.598Z: (node:5184) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-02-01T18:59:19.333Z: 📊 Database stats: 2 users
+2026-02-01T18:59:19.382Z: 📊 Database stats: 2 users
+2026-02-01T18:59:19.342Z: ✅ Server running on port 5000
+2026-02-01T18:59:19.347Z: 🌐 Server URL: http://localhost:5000
+2026-02-01T18:59:19.352Z: 📊 Health check: http://localhost:5000/health
+2026-02-01T18:59:19.361Z: 🛡️ API endpoints registered:
+2026-02-01T18:59:19.370Z:    - POST /api/auth/signup
+2026-02-01T18:59:19.381Z:    - POST /api/auth/login
+2026-02-01T18:59:19.383Z:    - POST /api/auth/verify-otp
+2026-02-01T18:59:19.388Z:    - GET  /api/auth/verify
+2026-02-01T18:59:19.393Z:    - GET  /api/products
+2026-02-01T18:59:19.395Z:    - GET  /api/products/:id
+2026-02-01T18:59:19.396Z:    - GET  /api/categories
+2026-02-01T18:59:19.396Z:    - GET  /api/orders
+2026-02-01T18:59:19.399Z:    - POST /api/orders
+2026-02-01T18:59:19.403Z:    - GET  /api/admin/dashboard/stats
+2026-02-01T18:59:19.405Z:    - GET  /uploads/*
+2026-02-01T18:59:19.407Z: ✅ Backend server ready to accept connections
