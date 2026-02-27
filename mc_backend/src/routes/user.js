@@ -4,24 +4,54 @@ const prisma = require("../utils/prisma");
 
 const router = express.Router();
 
-// Update user profile (DOB)
+// Update user profile
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { dob } = req.body;
+    const { dob, fullName, phone } = req.body || {};
 
-    if (!dob) {
-      return res.status(400).json({ message: "DOB required" });
+    const data = {};
+    if (typeof fullName === "string" && fullName.trim()) {
+      data.fullName = fullName.trim();
+    }
+    if (typeof phone === "string" && phone.trim()) {
+      data.phone = phone.trim();
+    }
+    if (dob === null || dob === undefined || dob === "") {
+      // allow clearing dob
+      data.dob = null;
+    } else {
+      const d = new Date(dob);
+      if (Number.isNaN(d.getTime())) {
+        return res.status(400).json({ message: "Invalid DOB" });
+      }
+      data.dob = d;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ message: "No fields to update" });
     }
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { dob: new Date(dob) }
+      data,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        fullName: true,
+        phone: true,
+        dob: true,
+      },
     });
 
     return res.json({ success: true, user: updatedUser });
   } catch (err) {
     console.error(err);
+    // Prisma unique constraint (phone/email)
+    if (err && err.code === "P2002") {
+      return res.status(400).json({ message: "Phone number already in use" });
+    }
     return res.status(500).json({ message: "Failed to update profile" });
   }
 };

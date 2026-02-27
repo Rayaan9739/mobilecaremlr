@@ -4,116 +4,124 @@ const prisma = require("../utils/prisma");
 
 const router = express.Router();
 
-function normalizeAddressText(value) {
-  return String(value || "").trim();
-}
-
-// Get my addresses
+// Get user address
 router.get("/my", auth, async (req, res) => {
   try {
-    const addresses = await prisma.address.findMany({
-      where: { userId: req.user.id },
-      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        addressLine1: true,
+        addressLine2: true,
+        city: true,
+        state: true,
+        pincode: true,
+        landmark: true,
+        isDefaultAddress: true,
+      },
     });
-    res.json(addresses);
+
+    // Return address as a single object
+    const address = user && (user.addressLine1 || user.city || user.state || user.pincode)
+      ? {
+          id: "main",
+          addressLine1: user.addressLine1 || "",
+          addressLine2: user.addressLine2 || "",
+          city: user.city || "",
+          state: user.state || "",
+          pincode: user.pincode || "",
+          landmark: user.landmark || "",
+          isDefaultAddress: user.isDefaultAddress,
+        }
+      : null;
+
+    res.json(address);
   } catch (error) {
-    console.error("Get addresses error:", error);
+    console.error("Get address error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Create address
+// Save/update user address
 router.post("/", auth, async (req, res) => {
   try {
-    const addressText = normalizeAddressText(req.body.addressText);
-    const label = req.body.label ? String(req.body.label).trim() : null;
-    const latitude =
-      typeof req.body.latitude === "number" ? req.body.latitude : null;
-    const longitude =
-      typeof req.body.longitude === "number" ? req.body.longitude : null;
-    const setDefault = Boolean(req.body.isDefault);
+    const { addressLine1 } = req.body;
 
-    if (!addressText || addressText.length < 3) {
+    if (!addressLine1 || addressLine1.length < 3) {
       return res.status(400).json({ error: "Address is required" });
     }
 
-    const existingCount = await prisma.address.count({
-      where: { userId: req.user.id },
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        addressLine1: addressLine1,
+        addressLine2: null,
+        city: null,
+        state: null,
+        pincode: null,
+        landmark: null,
+        isDefaultAddress: true,
+      },
+      select: {
+        addressLine1: true,
+        addressLine2: true,
+        city: true,
+        state: true,
+        pincode: true,
+        landmark: true,
+        isDefaultAddress: true,
+      },
     });
 
-    const shouldBeDefault = setDefault || existingCount === 0;
-
-    const address = await prisma.$transaction(async (tx) => {
-      if (shouldBeDefault) {
-        await tx.address.updateMany({
-          where: { userId: req.user.id, isDefault: true },
-          data: { isDefault: false },
-        });
-      }
-
-      return tx.address.create({
-        data: {
-          userId: req.user.id,
-          label,
-          addressText,
-          latitude,
-          longitude,
-          isDefault: shouldBeDefault,
-        },
-      });
+    res.json({
+      id: "main",
+      addressLine1: updatedUser.addressLine1,
+      addressLine2: updatedUser.addressLine2,
+      city: updatedUser.city,
+      state: updatedUser.state,
+      pincode: updatedUser.pincode,
+      landmark: updatedUser.landmark,
+      isDefaultAddress: updatedUser.isDefaultAddress,
     });
-
-    res.status(201).json(address);
   } catch (error) {
-    console.error("Create address error:", error);
+    console.error("Save address error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Update address (also supports setting default)
+// Update address (PATCH)
 router.patch("/:id", auth, async (req, res) => {
   try {
-    const id = req.params.id;
-    const address = await prisma.address.findFirst({
-      where: { id, userId: req.user.id },
-    });
-
-    if (!address) {
-      return res.status(404).json({ error: "Address not found" });
-    }
+    const { addressLine1 } = req.body;
 
     const data = {};
-    if (typeof req.body.label === "string") data.label = req.body.label.trim();
-    if (typeof req.body.addressText === "string") {
-      const normalized = normalizeAddressText(req.body.addressText);
-      if (normalized.length < 3) {
-        return res.status(400).json({ error: "Address is required" });
-      }
-      data.addressText = normalized;
+    if (typeof addressLine1 === "string" && addressLine1.length >= 3) {
+      data.addressLine1 = addressLine1;
     }
-    if (typeof req.body.latitude === "number") data.latitude = req.body.latitude;
-    if (typeof req.body.longitude === "number")
-      data.longitude = req.body.longitude;
 
-    const makeDefault =
-      typeof req.body.isDefault === "boolean" ? req.body.isDefault : null;
-
-    const updated = await prisma.$transaction(async (tx) => {
-      if (makeDefault === true) {
-        await tx.address.updateMany({
-          where: { userId: req.user.id, isDefault: true },
-          data: { isDefault: false },
-        });
-        data.isDefault = true;
-      }
-
-      return tx.address.update({
-        where: { id },
-        data,
-      });
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data,
+      select: {
+        addressLine1: true,
+        addressLine2: true,
+        city: true,
+        state: true,
+        pincode: true,
+        landmark: true,
+        isDefaultAddress: true,
+      },
     });
 
-    res.json(updated);
+    res.json({
+      id: "main",
+      addressLine1: updatedUser.addressLine1,
+      addressLine2: updatedUser.addressLine2,
+      city: updatedUser.city,
+      state: updatedUser.state,
+      pincode: updatedUser.pincode,
+      landmark: updatedUser.landmark,
+      isDefaultAddress: updatedUser.isDefaultAddress,
+    });
   } catch (error) {
     console.error("Update address error:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -123,30 +131,18 @@ router.patch("/:id", auth, async (req, res) => {
 // Delete address
 router.delete("/:id", auth, async (req, res) => {
   try {
-    const id = req.params.id;
-    const address = await prisma.address.findFirst({
-      where: { id, userId: req.user.id },
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        addressLine1: null,
+        addressLine2: null,
+        city: null,
+        state: null,
+        pincode: null,
+        landmark: null,
+        isDefaultAddress: false,
+      },
     });
-
-    if (!address) {
-      return res.status(404).json({ error: "Address not found" });
-    }
-
-    await prisma.address.delete({ where: { id } });
-
-    // If deleted default, promote most recent address to default
-    if (address.isDefault) {
-      const latest = await prisma.address.findFirst({
-        where: { userId: req.user.id },
-        orderBy: { createdAt: "desc" },
-      });
-      if (latest) {
-        await prisma.address.update({
-          where: { id: latest.id },
-          data: { isDefault: true },
-        });
-      }
-    }
 
     res.json({ message: "Address deleted" });
   } catch (error) {
@@ -156,4 +152,3 @@ router.delete("/:id", auth, async (req, res) => {
 });
 
 module.exports = router;
-

@@ -126,6 +126,10 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api", uploadRoutes);
 app.use("/api/dev", devRoutes);
+// notifications endpoints (public creation and admin actions)
+app.use("/api/notifications", require("./routes/notifications"));
+// also expose admin-specific path for fetching/deleting
+app.use("/api/admin/notifications", require("./routes/notifications"));
 
 // Health check with database status
 app.get("/health", async (req, res) => {
@@ -170,3 +174,31 @@ async function init() {
 }
 
 module.exports = { app, init };
+
+if (require.main === module) {
+  // default to 5006 so we don't clash with any other services;
+  // override with PORT env if necessary (e.g. 5000 in production)
+  const PORT = Number(process.env.PORT || 5006);
+
+  init()
+    .then(() => {
+      const server = app.listen(PORT, () => {
+        console.log(`🚀 API server listening on http://localhost:${PORT}`);
+      });
+
+      server.on("error", (err) => {
+        if (err.code === "EADDRINUSE") {
+          console.error(
+            `Port ${PORT} already in use. Did you start another instance?`,
+          );
+          process.exit(1);
+        }
+        // rethrow other errors
+        throw err;
+      });
+    })
+    .catch((err) => {
+      console.error("Failed to start server:", err);
+      process.exit(1);
+    });
+}

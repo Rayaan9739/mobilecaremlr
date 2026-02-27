@@ -18,8 +18,15 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   dob           DateTime?
-  addresses     Address[]
-  orders        Order[]
+  // Address fields directly in user table
+  addressLine1        String?
+  addressLine2        String?
+  city                String?
+  state               String?
+  pincode             String?
+  landmark            String?
+  isDefaultAddress    Boolean  @default(true)
+  orders              Order[]
 
   @@map("users")
 }
@@ -79,12 +86,10 @@ model Order {
   status      OrderStatus @default(PENDING)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  addressId   String?
   addressText String?
   latitude    Float?
   longitude   Float?
   items       OrderItem[]
-  address     Address?    @relation(fields: [addressId], references: [id])
   user        User        @relation(fields: [userId], references: [id])
 
   @@map("orders")
@@ -100,22 +105,6 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id])
 
   @@map("order_items")
-}
-
-model Address {
-  id          String   @id @default(cuid())
-  userId      String
-  label       String?
-  addressText String
-  latitude    Float?
-  longitude   Float?
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id])
-  orders      Order[]
-
-  @@map("addresses")
 }
 
 model PasswordResetOtp {
@@ -145,4 +134,35 @@ enum OrderStatus {
   CONFIRMED
   DELIVERED
   CANCELLED
+}
+
+enum NotificationType {
+  REPAIR
+  CONTACT
+  ORDER
+  CART_ORDER
+}
+
+model Notification {
+  id           String           @id @default(cuid())
+  // legacy fields (kept for backward compatibility with existing UI)
+  kind         String?          @default("repair")
+  name         String?
+  mobileNumber String?
+  phoneBrand   String?
+  phoneModel   String?
+  issues       Json             @default("[]")
+  otherIssue   String?          @default("")
+  visitDate    String?          @default("")
+  message      String
+  replied      Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+
+  // new unified model fields
+  type         NotificationType @default(REPAIR)
+  title        String?
+  data         Json?
+  expiresAt    DateTime?
+
+  @@map("notifications")
 }

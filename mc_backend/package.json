@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",
-    "@prisma/client": "^7.3.0",
+    "@prisma/client": "^7.4.1",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.9.0",
     "cors": "^2.8.5",
@@ -32,6 +32,6 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
-    "prisma": "^7.3.0"
+    "prisma": "^7.4.1"
   }
 }

@@ -1,36 +1,52 @@
-const jwt = require('jsonwebtoken');
-const prisma = require('../utils/prisma');
+const jwt = require("jsonwebtoken");
+const prisma = require("../utils/prisma");
 
 const auth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
     if (!token) {
-      return res.status(401).json({ error: 'Access denied. No token provided.' });
+      return res
+        .status(401)
+        .json({ error: "Access denied. No token provided." });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, email: true, role: true, emailVerified: true, fullName: true, phone: true }
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        emailVerified: true,
+        fullName: true,
+        phone: true,
+      },
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid token.' });
+      return res.status(401).json({ error: "Invalid token." });
     }
 
     req.user = user;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token.' });
+    res.status(401).json({ error: "Invalid token." });
   }
 };
 
 const adminAuth = async (req, res, next) => {
   auth(req, res, () => {
-    // Check role case-insensitively to handle 'admin', 'Admin', or 'ADMIN'
-    if (!req.user.role || req.user.role.toUpperCase() !== 'ADMIN') {
-      return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+    // ensure user is admin role and also the approved admin email
+    const isAdminRole =
+      req.user.role && req.user.role.toUpperCase() === "ADMIN";
+    const isSuperEmail =
+      req.user.email && req.user.email.toLowerCase() === "admin@mobilecare.com";
+
+    if (!isAdminRole || !isSuperEmail) {
+      return res
+        .status(403)
+        .json({ error: "Access denied. Admin privileges required." });
     }
     next();
   });
