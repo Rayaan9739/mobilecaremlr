@@ -1,5 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
+import {
+  useParams,
+  useNavigate,
+  Link,
+  useSearchParams,
+} from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Share2,
@@ -84,7 +89,10 @@ export default function ProductDetail() {
     }
   }, [id]);
 
-  const productGroups = useMemo(() => groupProductsByName(allProducts), [allProducts]);
+  const productGroups = useMemo(
+    () => groupProductsByName(allProducts),
+    [allProducts],
+  );
 
   const currentGroup = useMemo(() => {
     if (!id) return null;
@@ -108,25 +116,30 @@ export default function ProductDetail() {
 
   const availableStorages = useMemo(() => {
     if (!currentGroup) return [];
-    return Array.from(new Set(currentGroup.variants.map((variant) => variant.storage)));
+    return Array.from(
+      new Set(currentGroup.variants.map((variant) => variant.storage)),
+    );
   }, [currentGroup]);
 
   const availableColors = useMemo(() => {
     if (!currentGroup) return [];
     const scoped = selectedStorage
-      ? currentGroup.variants.filter((variant) => variant.storage === selectedStorage)
+      ? currentGroup.variants.filter(
+          (variant) => variant.storage === selectedStorage,
+        )
       : currentGroup.variants;
     return Array.from(new Set(scoped.map((variant) => variant.color)));
   }, [currentGroup, selectedStorage]);
 
   const similarProducts = useMemo(() => {
     if (!currentGroup) return [];
+    // Show products of the same brand (excluding current product)
     return productGroups
       .filter(
         (group) =>
           group.groupId !== currentGroup.groupId &&
-          String(group.category).toLowerCase() ===
-            String(currentGroup.category).toLowerCase(),
+          String(group.brand).toLowerCase() ===
+            String(currentGroup.brand).toLowerCase(),
       )
       .slice(0, 4);
   }, [currentGroup, productGroups]);
@@ -149,7 +162,9 @@ export default function ProductDetail() {
     if (!currentGroup || currentGroup.variants.length === 0) return;
     const queryColor = searchParams.get("color") || "";
     const queryStorage = searchParams.get("storage") || "";
-    const initialVariant = pickVariant(currentGroup, queryColor, queryStorage) || currentGroup.variants[0];
+    const initialVariant =
+      pickVariant(currentGroup, queryColor, queryStorage) ||
+      currentGroup.variants[0];
     setSelectedColor(initialVariant.color);
     setSelectedStorage(initialVariant.storage);
     setSelectedImageIndex(0);
@@ -333,7 +348,9 @@ export default function ProductDetail() {
               Products
             </Link>
             <ChevronRight className="w-4 h-4" />
-            <span className="text-foreground">{currentGroup?.name || product.name}</span>
+            <span className="text-foreground">
+              {currentGroup?.name || product.name}
+            </span>
           </motion.div>
 
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
@@ -466,21 +483,6 @@ export default function ProductDetail() {
                 </p>
               )}
 
-              {/* All Offers Link */}
-              <Card className="border-border hover:border-primary/50 transition-all cursor-pointer">
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                      <Percent className="w-5 h-5 text-orange-500" />
-                    </div>
-                    <span className="font-medium text-foreground">
-                      All Offers and Discounts
-                    </span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                </CardContent>
-              </Card>
-
               {/* Storage + Colors */}
               {availableStorages.length > 0 && (
                 <div>
@@ -557,20 +559,6 @@ export default function ProductDetail() {
                   </div>
                 </div>
               )}
-
-              {/* Delivery Info */}
-
-              {/* Delivery Info */}
-              <Card className="border-border bg-green-50/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 text-green-700">
-                    <Tag className="w-4 h-4" />
-                    <span className="text-sm font-medium">
-                      Free Delivery by Tomorrow, 9 PM
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
 
               {/* Trust Icons */}
               <div className="grid grid-cols-3 gap-6 pt-2">
@@ -724,18 +712,18 @@ export default function ProductDetail() {
           {similarProducts.length > 0 && (
             <div className="mt-12">
               <h3 className="text-xl font-bold text-foreground mb-4">
-                Similar Products
+                More from {currentGroup?.brand}
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {similarProducts.map((item) => (
                   <button
                     key={item.groupId}
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
                       navigate(
                         `/product/${String(item.category).toLowerCase() === "mobile" ? "new" : "accessory"}/${item.groupId}`,
-                      )
-                    }
+                      );
+                    }}
                     className="text-left border border-border rounded-xl p-3 hover:border-primary/50 transition-colors"
                   >
                     <img

@@ -73,3 +73,16 @@
 @utility shadow-elevated {
   box-shadow: 0 18px 50px rgba(11, 19, 38, 0.18);
 }
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@utility animate-scroll {
+  animation: scroll 30s linear infinite;
+}

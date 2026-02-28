@@ -5,60 +5,55 @@ const fs = require("fs");
 
 const router = express.Router();
 
-// 👉 Use BASE_URL from environment (fallback to localhost for dev)
-const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
-
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, "../../uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Configure multer for file uploads
+// Configure local disk storage
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, "../../uploads");
+    // Create uploads directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
-    const uniqueSuffix =
-      Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, "product-" + uniqueSuffix + path.extname(file.originalname));
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, "product-" + uniqueSuffix + ext);
   },
 });
+
+// File filter to only allow images
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|webp/;
+  const extname = allowedTypes.test(
+    path.extname(file.originalname).toLowerCase(),
+  );
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (extname && mimetype) {
+    return cb(null, true);
+  } else {
+    cb(new Error("Only image files are allowed (jpeg, jpg, png, webp)"));
+  }
+};
 
 const upload = multer({
   storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "image/webp",
-    ];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(
-        new Error(
-          "Invalid file type. Only JPG, PNG, and WebP are allowed."
-        )
-      );
-    }
-  },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: fileFilter,
 });
 
-// ✅ Upload endpoint
+// ✅ Upload endpoint using local storage
 router.post("/upload", upload.single("image"), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // 👉 Always build URL using BASE_URL (fixes production)
-    const fileUrl = `${BASE_URL}/uploads/${req.file.filename}`;
+    // Get the local file path - return full URL for frontend compatibility
+    const protocol = req.protocol;
+    const host = req.get("host");
+    const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
 
     res.json({
       success: true,
@@ -74,13 +69,6 @@ router.post("/upload", upload.single("image"), (req, res) => {
 
 // Error handling
 router.use((error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === "LIMIT_FILE_SIZE") {
-      return res
-        .status(400)
-        .json({ error: "File too large. Maximum size is 5MB." });
-    }
-  }
   res.status(400).json({ error: error.message });
 });
 

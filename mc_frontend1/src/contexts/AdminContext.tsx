@@ -5,6 +5,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
+import api from "@/lib/api";
 
 // Cross-tab sync event name
 const SYNC_EVENT_NAME = "mc-data-sync";
@@ -91,6 +92,7 @@ interface AdminContextType {
     phone: Partial<Phone>,
   ) => void;
   removePhone: (type: "new" | "used", id: number) => void;
+  uploadImage: (file: File) => Promise<string>;
 }
 
 const defaultHeroSettings: HeroSettings = {
@@ -629,6 +631,26 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     setter((prev) => prev.filter((p) => p.id !== id));
   };
 
+  const uploadImage = async (file: File): Promise<string> => {
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      
+      const response = await api("/upload", {
+        method: "POST",
+        body: formData,
+      }) as { url: string };
+      
+      if (!response.url) {
+        throw new Error("Upload failed - no URL returned");
+      }
+      
+      return response.url;
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : "Image upload failed");
+    }
+  };
+
   return (
     <AdminContext.Provider
       value={{
@@ -655,6 +677,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         addPhone,
         updatePhone,
         removePhone,
+        uploadImage,
       }}
     >
       {children}

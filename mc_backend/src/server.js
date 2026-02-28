@@ -7,15 +7,28 @@ const path = require("node:path");
 require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
+console.log("[server] authRoutes imported, typeof =", typeof authRoutes);
 const userRoutes = require("./routes/user");
+console.log("[server] userRoutes imported, typeof =", typeof userRoutes);
 const productRoutes = require("./routes/products");
+console.log("[server] productRoutes imported, typeof =", typeof productRoutes);
 const categoryRoutes = require("./routes/categories");
+console.log(
+  "[server] categoryRoutes imported, typeof =",
+  typeof categoryRoutes,
+);
 const orderRoutes = require("./routes/orders");
+console.log("[server] orderRoutes imported, typeof =", typeof orderRoutes);
 const addressRoutes = require("./routes/addresses");
+console.log("[server] addressRoutes imported, typeof =", typeof addressRoutes);
 const adminRoutes = require("./routes/admin");
+console.log("[server] adminRoutes imported, typeof =", typeof adminRoutes);
 const uploadRoutes = require("./routes/upload");
+console.log("[server] uploadRoutes imported, typeof =", typeof uploadRoutes);
 const devRoutes = require("./routes/dev");
+console.log("[server] devRoutes imported, typeof =", typeof devRoutes);
 const contentRoutes = require("./routes/content"); // ✅ NEW
+console.log("[server] contentRoutes imported, typeof =", typeof contentRoutes);
 const prisma = require("./utils/prisma");
 const { ensureAdminExists } = require("./utils/ensureAdmin");
 
@@ -26,7 +39,10 @@ async function testDatabaseConnection() {
   try {
     console.log("⏳ Connecting to database...");
     const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Database connection timed out (5s)")), 5000)
+      setTimeout(
+        () => reject(new Error("Database connection timed out (5s)")),
+        5000,
+      ),
     );
 
     await Promise.race([prisma.$connect(), timeout]);
@@ -45,7 +61,7 @@ async function testDatabaseConnection() {
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-  })
+  }),
 );
 
 // CORS
@@ -67,7 +83,7 @@ app.use(
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-  })
+  }),
 );
 
 console.log(`🔒 CORS configured for origins: ${allowedOrigins.join(", ")}`);
@@ -77,7 +93,7 @@ app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 500,
-  })
+  }),
 );
 
 const otpLimiter = rateLimit({
@@ -97,7 +113,7 @@ app.use(
     res.setHeader("Access-Control-Allow-Origin", "*");
     next();
   },
-  express.static(path.join(__dirname, "../uploads"))
+  express.static(path.join(__dirname, "../uploads")),
 );
 
 // Routes
@@ -111,8 +127,13 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api", uploadRoutes);
 app.use("/api/dev", devRoutes);
 app.use("/api/content", contentRoutes); // ✅ NEW CONTENT API
-app.use("/api/notifications", require("./routes/notifications"));
-app.use("/api/admin/notifications", require("./routes/notifications"));
+const notificationsRoutes = require("./routes/notifications");
+console.log(
+  "[server] notificationsRoutes imported (inline), typeof =",
+  typeof notificationsRoutes,
+);
+app.use("/api/notifications", notificationsRoutes);
+app.use("/api/admin/notifications", notificationsRoutes);
 
 // Health endpoint
 app.get("/health", async (req, res) => {
@@ -159,7 +180,8 @@ async function init() {
 module.exports = { app, init };
 
 if (require.main === module) {
-  const PORT = Number(process.env.PORT || 5006);
+  // default port should match frontend expectations
+  const PORT = Number(process.env.PORT || 5000);
 
   init()
     .then(() => {

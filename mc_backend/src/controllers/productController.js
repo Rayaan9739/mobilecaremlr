@@ -578,10 +578,18 @@ const deleteProduct = async (req, res) => {
   try {
     const product = await prisma.product.findUnique({
       where: { id: req.params.id },
+      include: { orderItems: true },
     });
 
     if (!product) {
       return res.status(404).json({ error: "Product not found" });
+    }
+
+    // Delete related order items first
+    if (product.orderItems && product.orderItems.length > 0) {
+      await prisma.orderItem.deleteMany({
+        where: { productId: req.params.id },
+      });
     }
 
     await prisma.product.delete({
@@ -591,7 +599,7 @@ const deleteProduct = async (req, res) => {
     res.json({ message: "Product deleted successfully" });
   } catch (error) {
     console.error("Delete product error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 };
 

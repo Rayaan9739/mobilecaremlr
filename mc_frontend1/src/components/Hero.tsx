@@ -4,22 +4,9 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAdmin } from "@/contexts/AdminContext";
 
-interface HeroProps {
-  heroSettings?: {
-    tagline?: string;
-    title?: string;
-    titleHighlight?: string;
-    subtitle?: string;
-    backgroundImage?: string;
-  };
-}
-
-export function Hero(props: HeroProps) {
+export function Hero() {
   const navigate = useNavigate();
-  const { heroSettings: contextHeroSettings } = useAdmin();
-
-  // Use props if provided, otherwise fallback to context
-  const heroSettings = props.heroSettings ?? contextHeroSettings;
+  const { heroSettings } = useAdmin();
 
   // Use hero settings from AdminContext, fallback to defaults if not set
   const tagline = heroSettings?.tagline || "Get best mobile experience with us";
@@ -71,8 +58,7 @@ export function Hero(props: HeroProps) {
             transition={{ delay: 0.3 }}
             className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-primary-foreground mb-4 leading-tight"
           >
-            {title}
-            <br />
+            {title}<br />
             <span className="text-gradient">{titleHighlight}</span>
           </motion.h1>
 
@@ -94,7 +80,7 @@ export function Hero(props: HeroProps) {
             <Button
               size="lg"
               className="btn-gradient text-primary-foreground rounded-full px-8 shadow-soft hover:shadow-elevated transition-all text-lg"
-              onClick={() => navigate("/mobiles-accessories")}
+              onClick={() => navigate('/mobiles-accessories')}
             >
               Explore Collection
               <ArrowRight className="w-5 h-5 ml-2" />
@@ -102,7 +88,7 @@ export function Hero(props: HeroProps) {
             <Button
               size="lg"
               variant="outline"
-              onClick={() => navigate("/services")}
+              onClick={() => navigate('/services')}
               className="bg-transparent border-2 border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-foreground rounded-full px-8 text-lg cursor-pointer transition-all"
             >
               Our Services

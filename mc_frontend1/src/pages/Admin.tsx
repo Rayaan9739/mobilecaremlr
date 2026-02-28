@@ -45,7 +45,7 @@ import {
   Wrench,
   Package,
   Search,
-  Users,
+  Users as UsersIcon,
   Star,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -304,9 +304,7 @@ function ProductForm({
   const availableHighlights =
     categoryHighlights[category as keyof typeof categoryHighlights] || [];
 
-  const handleOriginalPriceChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleOriginalPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setOriginalPrice(val);
     if (val && discount) {
@@ -589,23 +587,14 @@ function ProductForm({
                       const file = e.target.files?.[0];
                       if (file) {
                         // File validation: check for valid image types
-                        const validTypes = [
-                          "image/jpeg",
-                          "image/jpg",
-                          "image/png",
-                          "image/webp",
-                        ];
+                        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
                         if (!validTypes.includes(file.type)) {
-                          toast.error(
-                            "Invalid file type. Please upload a JPEG, PNG, or WebP image.",
-                          );
+                          toast.error("Invalid file type. Please upload a JPEG, PNG, or WebP image.");
                           return;
                         }
                         // File size validation (max 10MB)
                         if (file.size > 10 * 1024 * 1024) {
-                          toast.error(
-                            "File too large. Please upload an image under 10MB.",
-                          );
+                          toast.error("File too large. Please upload an image under 10MB.");
                           return;
                         }
                         handleImageUpload(file, index);
@@ -650,9 +639,7 @@ function ProductForm({
                       {imageLoading[index] ? (
                         <div className="flex flex-col items-center justify-center">
                           <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mb-2" />
-                          <p className="text-xs text-muted-foreground">
-                            Loading preview...
-                          </p>
+                          <p className="text-xs text-muted-foreground">Loading preview...</p>
                         </div>
                       ) : imageLoadErrors[index] ? (
                         <div className="flex flex-col items-center justify-center p-4">
@@ -668,17 +655,9 @@ function ProductForm({
                           src={slot.url}
                           alt={`Preview ${index + 1}`}
                           className="max-w-full max-h-full w-auto h-auto object-contain"
-                          onLoad={() =>
-                            setImageLoading((prev) => ({
-                              ...prev,
-                              [index]: false,
-                            }))
-                          }
+                          onLoad={() => setImageLoading((prev) => ({ ...prev, [index]: false }))}
                           onError={() => {
-                            setImageLoading((prev) => ({
-                              ...prev,
-                              [index]: false,
-                            }));
+                            setImageLoading((prev) => ({ ...prev, [index]: false }));
                             setImageLoadErrors((prev) => ({
                               ...prev,
                               [index]: true,
@@ -705,7 +684,7 @@ function ProductForm({
             </p>
             {availableHighlights.map((highlight) => {
               // For MOBILE category we show checkbox + conditional textarea (fully controlled)
-              if (category === "MOBILE") {
+              if (category?.toUpperCase() === "MOBILE") {
                 const key = mobileKeyMap[highlight];
                 const checked = Boolean(mobileChecked[key]);
 
@@ -1129,9 +1108,7 @@ function ProductsManagement({
             <Card className="h-full overflow-hidden hover:shadow-elevated transition-all flex flex-col border border-border/50 bg-card rounded-md sm:rounded-xl">
               <div className="relative h-24 sm:h-40 bg-secondary/30 overflow-hidden flex items-center justify-center">
                 <img
-                  src={
-                    product.image?.trim() ? product.image : fallbackProductImage
-                  }
+                  src={product.image?.trim() ? product.image : fallbackProductImage}
                   alt={product.name}
                   className="max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-105"
                 />
@@ -1486,7 +1463,7 @@ function PhoneList(props: Readonly<{ type: "new" | "used" }>) {
 
 // Hero Settings Component
 function HeroSettings() {
-  const { heroSettings, updateHeroSettings } = useAdmin();
+  const { heroSettings, updateHeroSettings, uploadImage } = useAdmin();
   const [tagline, setTagline] = useState(heroSettings.tagline);
   const [title, setTitle] = useState(heroSettings.title);
   const [titleHighlight, setTitleHighlight] = useState(
@@ -1496,6 +1473,22 @@ function HeroSettings() {
   const [backgroundImage, setBackgroundImage] = useState(
     heroSettings.backgroundImage,
   );
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageUpload = async (file: File) => {
+    try {
+      setIsUploading(true);
+      const url = await uploadImage(file);
+      setBackgroundImage(url);
+      toast.success("Image uploaded successfully");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Image upload failed",
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSave = () => {
     updateHeroSettings({
@@ -1573,14 +1566,31 @@ function HeroSettings() {
             <Label htmlFor="backgroundImage">
               Image URL (leave empty to use default)
             </Label>
+            <Input
+              id="backgroundImage-file"
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageUpload(file);
+              }}
+              disabled={isUploading}
+              className="mb-2"
+            />
             <Textarea
               id="backgroundImage"
               value={backgroundImage}
               onChange={(e) => setBackgroundImage(e.target.value)}
-              placeholder="https://..."
+              placeholder="Or enter image URL"
               className="resize-none"
+              disabled={isUploading}
             />
           </div>
+          {isUploading && (
+            <p className="text-sm text-muted-foreground italic">
+              Uploading image...
+            </p>
+          )}
           {backgroundImage && (
             <div className="aspect-video rounded-lg overflow-hidden bg-secondary">
               <img
@@ -1593,8 +1603,8 @@ function HeroSettings() {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave} className="btn-gradient">
-        Save Hero Settings
+      <Button onClick={handleSave} className="btn-gradient" disabled={isUploading}>
+        {isUploading ? "Uploading..." : "Save Hero Settings"}
       </Button>
     </div>
   );
@@ -1609,8 +1619,25 @@ function GalleryImageForm(
   }>,
 ) {
   const { image, onSubmit, onCancel } = props;
+  const { uploadImage } = useAdmin();
   const [url, setUrl] = useState(image?.url || "");
   const [alt, setAlt] = useState(image?.alt || "");
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageUpload = async (file: File) => {
+    try {
+      setIsUploading(true);
+      const uploadedUrl = await uploadImage(file);
+      setUrl(uploadedUrl);
+      toast.success("Image uploaded successfully");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Image upload failed",
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1626,10 +1653,22 @@ function GalleryImageForm(
       <div>
         <Label htmlFor="url">Image URL</Label>
         <Input
+          id="url-file"
+          type="file"
+          accept="image/jpeg,image/jpg,image/png,image/webp"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleImageUpload(file);
+          }}
+          disabled={isUploading}
+          className="mb-2"
+        />
+        <Input
           id="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://..."
+          placeholder="Or enter image URL"
+          disabled={isUploading}
         />
       </div>
       <div>
@@ -1641,17 +1680,22 @@ function GalleryImageForm(
           placeholder="Phone display in store"
         />
       </div>
+      {isUploading && (
+        <p className="text-sm text-muted-foreground italic">
+          Uploading image...
+        </p>
+      )}
       {url && (
         <div className="aspect-video rounded-lg overflow-hidden bg-secondary">
           <img src={url} alt="Preview" className="w-full h-full object-cover" />
         </div>
       )}
       <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isUploading}>
           Cancel
         </Button>
-        <Button type="submit" className="btn-gradient">
-          {image ? "Update" : "Add"} Image
+        <Button type="submit" className="btn-gradient" disabled={isUploading}>
+          {isUploading ? "Uploading..." : image ? "Update" : "Add"} Image
         </Button>
       </div>
     </form>
@@ -1797,12 +1841,14 @@ function OfferForm(
 ) {
   const { offer, onSubmit, onCancel } = props;
   const { products: allProducts } = useProducts();
+  const { uploadImage } = useAdmin();
   const [title, setTitle] = useState(offer?.title || "");
   const [subtitle, setSubtitle] = useState(offer?.subtitle || "Buy Now & Get");
   const [description, setDescription] = useState(offer?.description || "");
   const [tagline, setTagline] = useState(offer?.tagline || "End is No End");
   const [image, setImage] = useState(offer?.image || "");
   const [endDate, setEndDate] = useState(offer?.endDate || "");
+  const [isUploading, setIsUploading] = useState(false);
   const [productQuery, setProductQuery] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<
     Record<string, string>
@@ -1822,6 +1868,21 @@ function OfferForm(
     )
     .slice(0, 50);
 
+  const handleImageUpload = async (file: File) => {
+    try {
+      setIsUploading(true);
+      const url = await uploadImage(file);
+      setImage(url);
+      toast.success("Image uploaded successfully");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Image upload failed",
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !image) {
@@ -1834,9 +1895,7 @@ function OfferForm(
         productId,
         offerPrice: Number(price),
       }))
-      .filter(
-        (p) => p.productId && Number.isFinite(p.offerPrice) && p.offerPrice > 0,
-      );
+      .filter((p) => p.productId && Number.isFinite(p.offerPrice) && p.offerPrice > 0);
 
     const missingPrice = Object.entries(selectedProducts).some(
       ([, price]) => !price || Number(price) <= 0,
@@ -1899,12 +1958,24 @@ function OfferForm(
         />
       </div>
       <div>
-        <Label htmlFor="image">Image URL</Label>
+        <Label htmlFor="offer-image">Image URL</Label>
         <Input
-          id="image"
+          id="offer-image-file"
+          type="file"
+          accept="image/jpeg,image/jpg,image/png,image/webp"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleImageUpload(file);
+          }}
+          disabled={isUploading}
+          className="mb-2"
+        />
+        <Input
+          id="offer-image"
           value={image}
           onChange={(e) => setImage(e.target.value)}
-          placeholder="https://..."
+          placeholder="Or enter image URL"
+          disabled={isUploading}
         />
       </div>
       <div>
@@ -1929,10 +2000,7 @@ function OfferForm(
             <p className="text-xs text-muted-foreground">No products found.</p>
           ) : (
             filteredProducts.map((p) => {
-              const checked = Object.prototype.hasOwnProperty.call(
-                selectedProducts,
-                String(p.id),
-              );
+              const checked = Object.prototype.hasOwnProperty.call(selectedProducts, String(p.id));
               return (
                 <div key={p.id} className="flex items-center gap-3">
                   <input
@@ -1949,9 +2017,7 @@ function OfferForm(
                     }}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-foreground truncate">
-                      {p.name}
-                    </div>
+                    <div className="text-sm text-foreground truncate">{p.name}</div>
                     <div className="text-xs text-muted-foreground truncate">
                       â‚¹{Number(p.price).toLocaleString("en-IN")}
                     </div>
@@ -1976,6 +2042,11 @@ function OfferForm(
           )}
         </div>
       </div>
+      {isUploading && (
+        <p className="text-sm text-muted-foreground italic">
+          Uploading image...
+        </p>
+      )}
       {image && (
         <div className="aspect-video rounded-lg overflow-hidden bg-secondary">
           <img
@@ -1986,11 +2057,11 @@ function OfferForm(
         </div>
       )}
       <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isUploading}>
           Cancel
         </Button>
-        <Button type="submit" className="btn-gradient">
-          {offer ? "Update" : "Add"} Offer
+        <Button type="submit" className="btn-gradient" disabled={isUploading}>
+          {isUploading ? "Uploading..." : offer ? "Update" : "Add"} Offer
         </Button>
       </div>
     </form>
@@ -2129,6 +2200,276 @@ function OffersSettings() {
   );
 }
 
+// Technician Form Component
+function TechnicianForm(
+  props: Readonly<{
+    technician?: Technician;
+    onSubmit: (data: Omit<Technician, "id">) => void;
+    onCancel: () => void;
+  }>,
+) {
+  const { technician, onSubmit, onCancel } = props;
+  const { uploadImage } = useProducts();
+  const [name, setName] = useState(technician?.name || "");
+  const [role, setRole] = useState(technician?.role || "");
+  const [image, setImage] = useState(technician?.image || "");
+  const [yearsOfExperience, setYearsOfExperience] = useState(
+    technician?.yearsOfExperience?.toString() || "",
+  );
+  const [rating, setRating] = useState(technician?.rating?.toString() || "");
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageUpload = async (file: File) => {
+    try {
+      setIsUploading(true);
+      const url = await uploadImage(file);
+      setImage(url);
+      toast.success("Image uploaded successfully");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Image upload failed",
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !role || !image) {
+      toast.error("Name, role, and image are required");
+      return;
+    }
+    onSubmit({
+      name,
+      role,
+      image,
+      yearsOfExperience: yearsOfExperience ? Number(yearsOfExperience) : undefined,
+      rating: rating ? Number(rating) : undefined,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="name">Technician Name</Label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Rajesh Kumar"
+        />
+      </div>
+      <div>
+        <Label htmlFor="role">Role/Specialization</Label>
+        <Input
+          id="role"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          placeholder="Senior Technician"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="experience">Years of Experience</Label>
+          <Input
+            id="experience"
+            type="number"
+            value={yearsOfExperience}
+            onChange={(e) => setYearsOfExperience(e.target.value)}
+            placeholder="5"
+          />
+        </div>
+        <div>
+          <Label htmlFor="rating">Rating (0-5)</Label>
+          <Input
+            id="rating"
+            type="number"
+            step="0.1"
+            min="0"
+            max="5"
+            value={rating}
+            onChange={(e) => setRating(e.target.value)}
+            placeholder="4.9"
+          />
+        </div>
+      </div>
+      <div>
+        <Label htmlFor="image">Profile Image</Label>
+        <Input
+          id="image-file"
+          type="file"
+          accept="image/jpeg,image/jpg,image/png,image/webp"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleImageUpload(file);
+          }}
+          disabled={isUploading}
+        />
+        <Input
+          id="image"
+          value={image}
+          onChange={(e) => setImage(e.target.value)}
+          placeholder="Or enter image URL"
+          className="mt-2"
+          disabled={isUploading}
+        />
+      </div>
+      {image && (
+        <div className="aspect-square w-32 rounded-lg overflow-hidden bg-secondary">
+          <img
+            src={image}
+            alt="Preview"
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+      <div className="flex gap-2 justify-end">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isUploading}>
+          Cancel
+        </Button>
+        <Button type="submit" className="btn-gradient" disabled={isUploading}>
+          {isUploading ? "Uploading..." : technician ? "Update" : "Add"} Technician
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// Technicians Management Component
+function TechniciansManagement() {
+  const { technicians, addTechnician, updateTechnician, removeTechnician } = useAdmin();
+  const [editingTechnician, setEditingTechnician] = useState<Technician | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const handleAdd = (data: Omit<Technician, "id">) => {
+    addTechnician(data);
+    setIsAddOpen(false);
+    toast.success("Technician added successfully");
+  };
+
+  const handleUpdate = (data: Omit<Technician, "id">) => {
+    if (editingTechnician) {
+      updateTechnician(editingTechnician.id, data);
+      setEditingTechnician(null);
+      toast.success("Technician updated successfully");
+    }
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm("Are you sure you want to remove this technician?")) {
+      removeTechnician(id);
+      toast.success("Technician removed successfully");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-foreground">Technicians</h2>
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button className="btn-gradient">
+              <Plus className="w-4 h-4 mr-2" /> Add Technician
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add New Technician</DialogTitle>
+              <DialogDescription>
+                Add a new team member to your technicians list.
+              </DialogDescription>
+            </DialogHeader>
+            <TechnicianForm
+              onSubmit={handleAdd}
+              onCancel={() => setIsAddOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {technicians.map((tech) => (
+          <motion.div
+            key={tech.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="group h-full"
+          >
+            <Card className="h-full overflow-hidden hover:shadow-elevated transition-all flex flex-col border border-border/50">
+              <div className="relative h-48 bg-secondary/30 overflow-hidden">
+                <img
+                  src={tech.image}
+                  alt={tech.name}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <Dialog
+                    open={editingTechnician?.id === tech.id}
+                    onOpenChange={(open) => !open && setEditingTechnician(null)}
+                  >
+                    <DialogTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="secondary"
+                        onClick={() => setEditingTechnician(tech)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Edit Technician</DialogTitle>
+                        <DialogDescription>
+                          Update the technician information.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <TechnicianForm
+                        technician={tech}
+                        onSubmit={handleUpdate}
+                        onCancel={() => setEditingTechnician(null)}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                  <Button
+                    size="icon"
+                    variant="destructive"
+                    onClick={() => handleDelete(tech.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <CardContent className="p-4 flex-1 flex flex-col">
+                <h3 className="font-semibold text-foreground">{tech.name}</h3>
+                <p className="text-sm text-primary mt-1">{tech.role}</p>
+                {tech.yearsOfExperience && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {tech.yearsOfExperience} years experience
+                  </p>
+                )}
+                {tech.rating && (
+                  <div className="flex items-center gap-1 mt-2">
+                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                    <span className="text-sm font-semibold">{tech.rating}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {technicians.length === 0 && (
+        <div className="text-center py-12 bg-card rounded-xl border border-dashed">
+          <UsersIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
+          <p className="text-muted-foreground italic">No technicians added yet</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Service Form Component
 function ServiceForm(
   props: Readonly<{
@@ -2225,145 +2566,6 @@ function ServiceForm(
         </Button>
         <Button type="submit" className="btn-gradient">
           {service ? "Update" : "Add"} Service
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-// Technician Form Component
-function TechnicianForm(
-  props: Readonly<{
-    technician?: Technician;
-    onSubmit: (data: Omit<Technician, "id">) => void;
-    onCancel: () => void;
-  }>,
-) {
-  const { technician, onSubmit, onCancel } = props;
-  const { uploadImage } = useProducts();
-
-  const [name, setName] = useState(technician?.name || "");
-  const [role, setRole] = useState(technician?.role || "");
-  const [image, setImage] = useState(technician?.image || "");
-  const [rating, setRating] = useState<number | "">(technician?.rating ?? "");
-  const [experience, setExperience] = useState<number | "">(
-    technician?.yearsOfExperience ?? "",
-  );
-  const [isUploading, setIsUploading] = useState(false);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setIsUploading(true);
-      try {
-        const url = await uploadImage(file);
-        setImage(url);
-        toast.success("Image uploaded");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Upload failed");
-      } finally {
-        setIsUploading(false);
-      }
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !role) {
-      toast.error("Name and role are required");
-      return;
-    }
-    onSubmit({
-      name,
-      role,
-      image,
-      yearsOfExperience: experience === "" ? undefined : +experience,
-      rating: rating === "" ? undefined : +rating,
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="name">Name</Label>
-        <Input
-          id="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Rahul Singh"
-        />
-      </div>
-      <div>
-        <Label htmlFor="role">Role / Title</Label>
-        <Input
-          id="role"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          placeholder="Senior Technician"
-        />
-      </div>
-      <div>
-        <Label htmlFor="image">Photo</Label>
-        <Input
-          id="image"
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-        />
-        {isUploading && (
-          <p className="text-xs text-muted-foreground">Uploading...</p>
-        )}
-        {image && !isUploading && (
-          <img
-            src={image}
-            alt="preview"
-            className="mt-2 w-24 h-24 object-cover rounded-full"
-          />
-        )}
-      </div>
-      <div>
-        <Label htmlFor="experience">Years of experience</Label>
-        <Input
-          id="experience"
-          type="number"
-          min="0"
-          value={experience}
-          onChange={(e) =>
-            setExperience(e.target.value === "" ? "" : +e.target.value)
-          }
-          placeholder="3"
-        />
-      </div>
-      <div>
-        <Label htmlFor="image">Image URL</Label>
-        <Input
-          id="image"
-          value={image}
-          onChange={(e) => setImage(e.target.value)}
-          placeholder="https://...jpg"
-        />
-      </div>
-      <div>
-        <Label htmlFor="rating">Rating (optional)</Label>
-        <Input
-          id="rating"
-          type="number"
-          min="0"
-          max="5"
-          step="0.1"
-          value={rating}
-          onChange={(e) =>
-            setRating(e.target.value === "" ? "" : +e.target.value)
-          }
-          placeholder="4.8"
-        />
-      </div>
-      <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" className="btn-gradient">
-          {technician ? "Update" : "Add"} Technician
         </Button>
       </div>
     </form>
@@ -2501,140 +2703,6 @@ function ServicesSettings() {
   );
 }
 
-// Technicians Settings Component
-function TechniciansSettings() {
-  const { technicians, addTechnician, updateTechnician, removeTechnician } =
-    useAdmin();
-  const [editingTech, setEditingTech] = useState<Technician | null>(null);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-
-  const handleAdd = (data: Omit<Technician, "id">) => {
-    addTechnician(data);
-    setIsAddOpen(false);
-    toast.success("Technician added successfully");
-  };
-
-  const handleUpdate = (data: Omit<Technician, "id">) => {
-    if (editingTech) {
-      updateTechnician(editingTech.id, data);
-      setEditingTech(null);
-      toast.success("Technician updated successfully");
-    }
-  };
-
-  const handleDelete = (id: number) => {
-    removeTechnician(id);
-    toast.success("Technician removed successfully");
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-foreground">Technicians</h2>
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button className="btn-gradient">
-              <Plus className="w-4 h-4 mr-2" /> Add Technician
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add New Technician</DialogTitle>
-              <DialogDescription>
-                Create a new technician profile.
-              </DialogDescription>
-            </DialogHeader>
-            <TechnicianForm
-              onSubmit={handleAdd}
-              onCancel={() => setIsAddOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-6">
-        {(technicians || []).map((tech) => (
-          <motion.div
-            key={tech.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="group h-full"
-          >
-            <Card className="h-full overflow-hidden hover:shadow-elevated transition-all flex flex-col border border-border/50">
-              <CardContent className="p-4 flex-1 flex flex-col">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    {tech.image && (
-                      <img
-                        src={tech.image}
-                        alt={tech.name}
-                        className="w-16 h-16 rounded-full mb-2 object-cover"
-                      />
-                    )}
-                    <h3 className="font-semibold text-foreground">
-                      {tech.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                      {tech.role}
-                    </p>
-                    {tech.yearsOfExperience != null && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {tech.yearsOfExperience} yrs experience
-                      </p>
-                    )}
-                    {tech.rating != null && (
-                      <div className="flex items-center gap-1 mt-2 text-xs text-yellow-500">
-                        <Star className="w-3 h-3" /> {tech.rating}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Dialog
-                      open={editingTech?.id === tech.id}
-                      onOpenChange={(open) => !open && setEditingTech(null)}
-                    >
-                      <DialogTrigger asChild>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => setEditingTech(tech)}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Edit Technician</DialogTitle>
-                          <DialogDescription>
-                            Update the technician information.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <TechnicianForm
-                          technician={tech}
-                          onSubmit={handleUpdate}
-                          onCancel={() => setEditingTech(null)}
-                        />
-                      </DialogContent>
-                    </Dialog>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(tech.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // Main Admin Component
 export default function Admin() {
   return (
@@ -2653,8 +2721,7 @@ export default function Admin() {
                 Admin Dashboard
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                Manage your products, offers, services, technicians, and website
-                content
+                Manage your products, offers, services, and website content
               </p>
             </motion.div>
 
@@ -2671,8 +2738,7 @@ export default function Admin() {
                     value="used-phones"
                     className="flex items-center gap-1 text-[10px] sm:text-xs"
                   >
-                    <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Used
-                    Phones
+                    <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Used Phones
                   </TabsTrigger>
                   <TabsTrigger
                     value="offers"
@@ -2687,12 +2753,6 @@ export default function Admin() {
                     <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Services
                   </TabsTrigger>
                   <TabsTrigger
-                    value="technicians"
-                    className="flex items-center gap-1 text-[10px] sm:text-xs"
-                  >
-                    <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Technicians
-                  </TabsTrigger>
-                  <TabsTrigger
                     value="hero"
                     className="flex items-center gap-1 text-[10px] sm:text-xs"
                   >
@@ -2703,6 +2763,12 @@ export default function Admin() {
                     className="flex items-center gap-1 text-[10px] sm:text-xs"
                   >
                     <Images className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Gallery
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="technicians"
+                    className="flex items-center gap-1 text-[10px] sm:text-xs"
+                  >
+                    <UsersIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Technicians
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -2723,16 +2789,16 @@ export default function Admin() {
                 <ServicesSettings />
               </TabsContent>
 
-              <TabsContent value="technicians">
-                <TechniciansSettings />
-              </TabsContent>
-
               <TabsContent value="hero">
                 <HeroSettings />
               </TabsContent>
 
               <TabsContent value="gallery">
                 <GallerySettings />
+              </TabsContent>
+
+              <TabsContent value="technicians">
+                <TechniciansManagement />
               </TabsContent>
             </Tabs>
           </div>

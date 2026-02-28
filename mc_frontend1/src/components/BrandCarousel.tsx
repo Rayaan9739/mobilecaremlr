@@ -24,33 +24,43 @@ const brands: Brand[] = [
   {
     name: "Xiaomi",
     slug: "xiaomi",
-    logo: "https://upload.wikimedia.org/wikipedia/commons/2/23/Xiaomi_logo_%28white%29.svg",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
   },
-  { name: "Vivo", slug: "vivo", logo: null },
-  { name: "Oppo", slug: "oppo", logo: null },
-  { name: "Realme", slug: "realme", logo: null },
   {
     name: "OnePlus",
     slug: "oneplus",
     logo: "https://upload.wikimedia.org/wikipedia/commons/4/48/OnePlus_logo.svg",
   },
-  { name: "Motorola", slug: "motorola", logo: null },
   {
-    name: "Lenovo",
-    slug: "lenovo",
-    logo: "https://upload.wikimedia.org/wikipedia/commons/6/63/Lenovo_logo.svg",
+    name: "Realme",
+    slug: "realme",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/9/9d/Realme_logo.svg",
   },
   {
-    name: "Asus",
-    slug: "asus",
-    logo: "https://upload.wikimedia.org/wikipedia/commons/0/00/Asus_ROG_logo.svg",
+    name: "Vivo",
+    slug: "vivo",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/e/e7/Vivo_logo_2019.svg",
   },
   {
-    name: "Huawei",
-    slug: "huawei",
-    logo: "https://upload.wikimedia.org/wikipedia/commons/5/5e/Huawei_Logo.svg",
+    name: "Oppo",
+    slug: "oppo",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/8/8a/OPPO_LOGO_2019.svg",
   },
-  { name: "Nothing", slug: "nothing", logo: null },
+  {
+    name: "Motorola",
+    slug: "motorola",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/1/16/Motorola_Icon_Logo.svg",
+  },
+  {
+    name: "Google",
+    slug: "google",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg",
+  },
+  {
+    name: "Nothing",
+    slug: "nothing",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/6/6c/Nothing_logo.svg",
+  },
 ];
 
 // Validation function: Check if a brand is valid
@@ -149,28 +159,28 @@ export function BrandCarousel() {
                 }}
                 role="button"
                 tabIndex={0}
-                className="flex-shrink-0 w-[100px] sm:w-[120px] h-[60px] sm:h-[70px] bg-white rounded-xl flex items-center justify-center p-3 shadow-sm hover:shadow-md border border-gray-100 transition-all duration-300 group cursor-pointer"
+                className="flex-shrink-0 w-[120px] sm:w-[140px] h-[80px] sm:h-[90px] bg-white rounded-xl flex flex-col items-center justify-center p-4 shadow-sm hover:shadow-lg border border-gray-100 transition-all duration-300 group cursor-pointer"
               >
                 {brand.logo ? (
-                  <img
-                    src={brand.logo}
-                    alt={brand.name || brand.slug}
-                    className="max-h-full max-w-full object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                      (
-                        e.target as HTMLImageElement
-                      ).nextElementSibling?.classList.remove("hidden");
-                    }}
-                  />
+                  <>
+                    <img
+                      src={brand.logo}
+                      alt={brand.name || brand.slug}
+                      className="max-h-12 max-w-full object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300 mb-2"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                        const fallback = target.nextElementSibling as HTMLElement;
+                        if (fallback) fallback.classList.remove("hidden");
+                      }}
+                    />
+                    <span className="text-xs font-medium text-gray-600 text-center">
+                      {brand.name}
+                    </span>
+                  </>
                 ) : (
-                  <span className="font-semibold text-gray-600 text-sm">
+                  <span className="font-semibold text-gray-700 text-sm text-center">
                     {brand.name || brand.slug}
-                  </span>
-                )}
-                {brand.logo && brand.name && (
-                  <span className="hidden group-hover:block absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full pt-1 text-[10px] font-medium text-gray-500 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                    {brand.name}
                   </span>
                 )}
               </div>

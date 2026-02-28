@@ -1,5 +1,8 @@
+require("dotenv").config();
 const cloudinary = require("cloudinary").v2;
-const _multerStorageCloudinary = require("multer-storage-cloudinary");
+const multerStorageCloudinary = require("multer-storage-cloudinary");
+const CloudinaryStorage =
+  multerStorageCloudinary.CloudinaryStorage || multerStorageCloudinary;
 const multer = require("multer");
 
 cloudinary.config({
@@ -8,8 +11,8 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const storageOptions = {
-  cloudinary,
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
   params: {
     folder: "mobile-care-products",
     allowed_formats: ["jpg", "jpeg", "png", "webp"],
@@ -17,27 +20,11 @@ const storageOptions = {
       { width: 2000, height: 2000, crop: "limit", quality: "auto:best" },
     ],
   },
-};
-
-// Support both named/class export and factory export from different package versions
-const createCloudinaryStorage =
-  _multerStorageCloudinary.CloudinaryStorage || _multerStorageCloudinary;
-let storage;
-if (typeof createCloudinaryStorage === "function") {
-  try {
-    // Try as constructor (class)
-    storage = new createCloudinaryStorage(storageOptions);
-  } catch (err) {
-    // Fallback to factory function
-    storage = createCloudinaryStorage(storageOptions);
-  }
-} else {
-  throw new Error("Unsupported export from multer-storage-cloudinary");
-}
+});
 
 const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 module.exports = { cloudinary, upload };
