@@ -15,6 +15,7 @@ const addressRoutes = require("./routes/addresses");
 const adminRoutes = require("./routes/admin");
 const uploadRoutes = require("./routes/upload");
 const devRoutes = require("./routes/dev");
+const contentRoutes = require("./routes/content"); // ✅ NEW
 const prisma = require("./utils/prisma");
 const { ensureAdminExists } = require("./utils/ensureAdmin");
 
@@ -47,7 +48,7 @@ app.use(
   })
 );
 
-// ✅ PRODUCTION-READY CORS CONFIG
+// CORS
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:8080",
@@ -60,10 +61,7 @@ app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+      if (allowedOrigins.includes(origin)) return callback(null, true);
 
       console.log("❌ Blocked by CORS:", origin);
       return callback(new Error("Not allowed by CORS"));
@@ -75,11 +73,12 @@ app.use(
 console.log(`🔒 CORS configured for origins: ${allowedOrigins.join(", ")}`);
 
 // Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 500,
-});
-app.use(limiter);
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 500,
+  })
+);
 
 const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -111,6 +110,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api", uploadRoutes);
 app.use("/api/dev", devRoutes);
+app.use("/api/content", contentRoutes); // ✅ NEW CONTENT API
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/admin/notifications", require("./routes/notifications"));
 

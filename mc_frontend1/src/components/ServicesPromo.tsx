@@ -3,14 +3,34 @@ import { Check, ArrowRight, Monitor, Battery, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRepairBooking } from "@/contexts/RepairBookingContext";
 
-const services = [
+interface Service {
+  id: number;
+  name: string;
+  description: string;
+  price: string;
+  duration: string;
+  icon: string;
+}
+
+interface ServicesPromoProps {
+  services?: Service[];
+}
+
+const defaultServices = [
   { icon: Monitor, text: "Fast Screen Replacement" },
   { icon: Battery, text: "Battery & Charging Fix" },
   { icon: Settings, text: "Software & Unlock Services" },
 ];
 
-export function ServicesPromo() {
+export function ServicesPromo(props: ServicesPromoProps) {
   const { openModal } = useRepairBooking();
+  const services =
+    props.services && props.services.length > 0
+      ? props.services.map((s: Service) => ({
+          icon: Monitor, // Using Monitor as default icon
+          text: s.name,
+        }))
+      : defaultServices;
 
   return (
     <section className="py-24 md:py-32 bg-background overflow-hidden">
@@ -56,8 +76,12 @@ export function ServicesPromo() {
                   <Check className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
                 </div>
                 <div>
-                  <p className="text-[10px] sm:text-sm text-muted-foreground whitespace-nowrap">Success Rate</p>
-                  <p className="text-sm sm:text-lg font-bold text-foreground">99.9%</p>
+                  <p className="text-[10px] sm:text-sm text-muted-foreground whitespace-nowrap">
+                    Success Rate
+                  </p>
+                  <p className="text-sm sm:text-lg font-bold text-foreground">
+                    99.9%
+                  </p>
                 </div>
               </div>
             </motion.div>

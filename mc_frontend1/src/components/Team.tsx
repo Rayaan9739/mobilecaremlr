@@ -4,6 +4,10 @@ import { useRef } from "react";
 
 import { useAdmin, Technician } from "@/contexts/AdminContext";
 
+interface TeamProps {
+  technicians?: Technician[];
+}
+
 // fallback data in case context isn't available (shouldn't happen since provider adds defaults)
 const defaultTeam: Technician[] = [
   {
@@ -40,9 +44,10 @@ const defaultTeam: Technician[] = [
   },
 ];
 
-export function Team() {
+export function Team(props: TeamProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { technicians } = useAdmin();
+  const { technicians: contextTechnicians } = useAdmin();
+  const technicians = props.technicians ?? contextTechnicians;
   const team =
     technicians && technicians.length > 0 ? technicians : defaultTeam;
 

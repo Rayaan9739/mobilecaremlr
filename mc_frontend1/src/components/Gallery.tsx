@@ -2,8 +2,17 @@ import { useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAdmin } from "@/contexts/AdminContext";
 
-export function Gallery() {
-  const { galleryImages } = useAdmin();
+interface GalleryProps {
+  galleryImages?: {
+    id: number;
+    url: string;
+    alt?: string;
+  }[];
+}
+
+export function Gallery(props: GalleryProps) {
+  const { galleryImages: contextGalleryImages } = useAdmin();
+  const galleryImages = props.galleryImages ?? contextGalleryImages ?? [];
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,8 +61,12 @@ export function Gallery() {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <p className="text-primary font-display italic text-lg mb-2">Our Store</p>
-          <h2 className="text-2xl md:text-4xl font-bold text-foreground">Recent Gallery</h2>
+          <p className="text-primary font-display italic text-lg mb-2">
+            Our Store
+          </p>
+          <h2 className="text-2xl md:text-4xl font-bold text-foreground">
+            Recent Gallery
+          </h2>
         </motion.div>
 
         <div
@@ -69,9 +82,9 @@ export function Gallery() {
               viewport={{ once: true }}
               transition={{ delay: (index % galleryImages.length) * 0.1 }}
               className="relative flex-shrink-0 overflow-hidden rounded-2xl group cursor-pointer"
-              style={{ 
+              style={{
                 width: index % 3 === 0 ? "350px" : "250px",
-                height: index % 3 === 0 ? "400px" : "250px"
+                height: index % 3 === 0 ? "400px" : "250px",
               }}
             >
               <img

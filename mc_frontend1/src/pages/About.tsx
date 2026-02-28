@@ -12,8 +12,34 @@ import {
   Clock,
 } from "lucide-react";
 import { Team } from "@/components/Team";
+import { useState, useEffect } from "react";
+
+const API_BASE =
+  import.meta.env.VITE_API_BASE?.toString() || "http://localhost:5000/api";
 
 export default function About() {
+  const [technicians, setTechnicians] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/content`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.technicians) {
+            setTechnicians(JSON.parse(data.technicians));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch technicians:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchContent();
+  }, []);
   return (
     <div className="min-h-screen bg-secondary">
       <Header />
@@ -197,7 +223,7 @@ export default function About() {
                 smoothly.
               </p>
             </motion.div>
-            <Team />
+            <Team technicians={technicians} />
           </div>
         </section>
         {/* 4️⃣ Why Choose Us Section */}

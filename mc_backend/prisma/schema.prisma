@@ -166,3 +166,12 @@ model Notification {
 
   @@map("notifications")
 }
+
+model content_settings {
+  id           String   @id @default(cuid())
+  hero         Json?
+  technicians  Json?
+  gallery      Json?
+  services     Json?
+  updated_at   DateTime @default(now())
+}
