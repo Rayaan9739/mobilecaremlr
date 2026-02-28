@@ -30,6 +30,7 @@ import {
   GalleryImage,
   Offer,
   Service,
+  Technician,
 } from "@/contexts/AdminContext";
 import { useProducts, ProductProvider } from "@/contexts/ProductContext";
 import {
@@ -44,6 +45,8 @@ import {
   Wrench,
   Package,
   Search,
+  Users,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -301,7 +304,9 @@ function ProductForm({
   const availableHighlights =
     categoryHighlights[category as keyof typeof categoryHighlights] || [];
 
-  const handleOriginalPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOriginalPriceChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const val = e.target.value;
     setOriginalPrice(val);
     if (val && discount) {
@@ -584,14 +589,23 @@ function ProductForm({
                       const file = e.target.files?.[0];
                       if (file) {
                         // File validation: check for valid image types
-                        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+                        const validTypes = [
+                          "image/jpeg",
+                          "image/jpg",
+                          "image/png",
+                          "image/webp",
+                        ];
                         if (!validTypes.includes(file.type)) {
-                          toast.error("Invalid file type. Please upload a JPEG, PNG, or WebP image.");
+                          toast.error(
+                            "Invalid file type. Please upload a JPEG, PNG, or WebP image.",
+                          );
                           return;
                         }
                         // File size validation (max 10MB)
                         if (file.size > 10 * 1024 * 1024) {
-                          toast.error("File too large. Please upload an image under 10MB.");
+                          toast.error(
+                            "File too large. Please upload an image under 10MB.",
+                          );
                           return;
                         }
                         handleImageUpload(file, index);
@@ -636,7 +650,9 @@ function ProductForm({
                       {imageLoading[index] ? (
                         <div className="flex flex-col items-center justify-center">
                           <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mb-2" />
-                          <p className="text-xs text-muted-foreground">Loading preview...</p>
+                          <p className="text-xs text-muted-foreground">
+                            Loading preview...
+                          </p>
                         </div>
                       ) : imageLoadErrors[index] ? (
                         <div className="flex flex-col items-center justify-center p-4">
@@ -652,9 +668,17 @@ function ProductForm({
                           src={slot.url}
                           alt={`Preview ${index + 1}`}
                           className="max-w-full max-h-full w-auto h-auto object-contain"
-                          onLoad={() => setImageLoading((prev) => ({ ...prev, [index]: false }))}
+                          onLoad={() =>
+                            setImageLoading((prev) => ({
+                              ...prev,
+                              [index]: false,
+                            }))
+                          }
                           onError={() => {
-                            setImageLoading((prev) => ({ ...prev, [index]: false }));
+                            setImageLoading((prev) => ({
+                              ...prev,
+                              [index]: false,
+                            }));
                             setImageLoadErrors((prev) => ({
                               ...prev,
                               [index]: true,
@@ -1105,7 +1129,9 @@ function ProductsManagement({
             <Card className="h-full overflow-hidden hover:shadow-elevated transition-all flex flex-col border border-border/50 bg-card rounded-md sm:rounded-xl">
               <div className="relative h-24 sm:h-40 bg-secondary/30 overflow-hidden flex items-center justify-center">
                 <img
-                  src={product.image?.trim() ? product.image : fallbackProductImage}
+                  src={
+                    product.image?.trim() ? product.image : fallbackProductImage
+                  }
                   alt={product.name}
                   className="max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-105"
                 />
@@ -1808,7 +1834,9 @@ function OfferForm(
         productId,
         offerPrice: Number(price),
       }))
-      .filter((p) => p.productId && Number.isFinite(p.offerPrice) && p.offerPrice > 0);
+      .filter(
+        (p) => p.productId && Number.isFinite(p.offerPrice) && p.offerPrice > 0,
+      );
 
     const missingPrice = Object.entries(selectedProducts).some(
       ([, price]) => !price || Number(price) <= 0,
@@ -1901,7 +1929,10 @@ function OfferForm(
             <p className="text-xs text-muted-foreground">No products found.</p>
           ) : (
             filteredProducts.map((p) => {
-              const checked = Object.prototype.hasOwnProperty.call(selectedProducts, String(p.id));
+              const checked = Object.prototype.hasOwnProperty.call(
+                selectedProducts,
+                String(p.id),
+              );
               return (
                 <div key={p.id} className="flex items-center gap-3">
                   <input
@@ -1918,7 +1949,9 @@ function OfferForm(
                     }}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-foreground truncate">{p.name}</div>
+                    <div className="text-sm text-foreground truncate">
+                      {p.name}
+                    </div>
                     <div className="text-xs text-muted-foreground truncate">
                       â‚¹{Number(p.price).toLocaleString("en-IN")}
                     </div>
@@ -2198,6 +2231,145 @@ function ServiceForm(
   );
 }
 
+// Technician Form Component
+function TechnicianForm(
+  props: Readonly<{
+    technician?: Technician;
+    onSubmit: (data: Omit<Technician, "id">) => void;
+    onCancel: () => void;
+  }>,
+) {
+  const { technician, onSubmit, onCancel } = props;
+  const { uploadImage } = useProducts();
+
+  const [name, setName] = useState(technician?.name || "");
+  const [role, setRole] = useState(technician?.role || "");
+  const [image, setImage] = useState(technician?.image || "");
+  const [rating, setRating] = useState<number | "">(technician?.rating ?? "");
+  const [experience, setExperience] = useState<number | "">(
+    technician?.yearsOfExperience ?? "",
+  );
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setIsUploading(true);
+      try {
+        const url = await uploadImage(file);
+        setImage(url);
+        toast.success("Image uploaded");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Upload failed");
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !role) {
+      toast.error("Name and role are required");
+      return;
+    }
+    onSubmit({
+      name,
+      role,
+      image,
+      yearsOfExperience: experience === "" ? undefined : +experience,
+      rating: rating === "" ? undefined : +rating,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="name">Name</Label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Rahul Singh"
+        />
+      </div>
+      <div>
+        <Label htmlFor="role">Role / Title</Label>
+        <Input
+          id="role"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          placeholder="Senior Technician"
+        />
+      </div>
+      <div>
+        <Label htmlFor="image">Photo</Label>
+        <Input
+          id="image"
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+        />
+        {isUploading && (
+          <p className="text-xs text-muted-foreground">Uploading...</p>
+        )}
+        {image && !isUploading && (
+          <img
+            src={image}
+            alt="preview"
+            className="mt-2 w-24 h-24 object-cover rounded-full"
+          />
+        )}
+      </div>
+      <div>
+        <Label htmlFor="experience">Years of experience</Label>
+        <Input
+          id="experience"
+          type="number"
+          min="0"
+          value={experience}
+          onChange={(e) =>
+            setExperience(e.target.value === "" ? "" : +e.target.value)
+          }
+          placeholder="3"
+        />
+      </div>
+      <div>
+        <Label htmlFor="image">Image URL</Label>
+        <Input
+          id="image"
+          value={image}
+          onChange={(e) => setImage(e.target.value)}
+          placeholder="https://...jpg"
+        />
+      </div>
+      <div>
+        <Label htmlFor="rating">Rating (optional)</Label>
+        <Input
+          id="rating"
+          type="number"
+          min="0"
+          max="5"
+          step="0.1"
+          value={rating}
+          onChange={(e) =>
+            setRating(e.target.value === "" ? "" : +e.target.value)
+          }
+          placeholder="4.8"
+        />
+      </div>
+      <div className="flex gap-2 justify-end">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" className="btn-gradient">
+          {technician ? "Update" : "Add"} Technician
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 // Services Settings Component
 function ServicesSettings() {
   const { services, addService, updateService, removeService } = useAdmin();
@@ -2329,6 +2501,140 @@ function ServicesSettings() {
   );
 }
 
+// Technicians Settings Component
+function TechniciansSettings() {
+  const { technicians, addTechnician, updateTechnician, removeTechnician } =
+    useAdmin();
+  const [editingTech, setEditingTech] = useState<Technician | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const handleAdd = (data: Omit<Technician, "id">) => {
+    addTechnician(data);
+    setIsAddOpen(false);
+    toast.success("Technician added successfully");
+  };
+
+  const handleUpdate = (data: Omit<Technician, "id">) => {
+    if (editingTech) {
+      updateTechnician(editingTech.id, data);
+      setEditingTech(null);
+      toast.success("Technician updated successfully");
+    }
+  };
+
+  const handleDelete = (id: number) => {
+    removeTechnician(id);
+    toast.success("Technician removed successfully");
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-foreground">Technicians</h2>
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button className="btn-gradient">
+              <Plus className="w-4 h-4 mr-2" /> Add Technician
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add New Technician</DialogTitle>
+              <DialogDescription>
+                Create a new technician profile.
+              </DialogDescription>
+            </DialogHeader>
+            <TechnicianForm
+              onSubmit={handleAdd}
+              onCancel={() => setIsAddOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-6">
+        {(technicians || []).map((tech) => (
+          <motion.div
+            key={tech.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="group h-full"
+          >
+            <Card className="h-full overflow-hidden hover:shadow-elevated transition-all flex flex-col border border-border/50">
+              <CardContent className="p-4 flex-1 flex flex-col">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    {tech.image && (
+                      <img
+                        src={tech.image}
+                        alt={tech.name}
+                        className="w-16 h-16 rounded-full mb-2 object-cover"
+                      />
+                    )}
+                    <h3 className="font-semibold text-foreground">
+                      {tech.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      {tech.role}
+                    </p>
+                    {tech.yearsOfExperience != null && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {tech.yearsOfExperience} yrs experience
+                      </p>
+                    )}
+                    {tech.rating != null && (
+                      <div className="flex items-center gap-1 mt-2 text-xs text-yellow-500">
+                        <Star className="w-3 h-3" /> {tech.rating}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Dialog
+                      open={editingTech?.id === tech.id}
+                      onOpenChange={(open) => !open && setEditingTech(null)}
+                    >
+                      <DialogTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setEditingTech(tech)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Edit Technician</DialogTitle>
+                          <DialogDescription>
+                            Update the technician information.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <TechnicianForm
+                          technician={tech}
+                          onSubmit={handleUpdate}
+                          onCancel={() => setEditingTech(null)}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(tech.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Main Admin Component
 export default function Admin() {
   return (
@@ -2347,7 +2653,8 @@ export default function Admin() {
                 Admin Dashboard
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                Manage your products, offers, services, and website content
+                Manage your products, offers, services, technicians, and website
+                content
               </p>
             </motion.div>
 
@@ -2364,7 +2671,8 @@ export default function Admin() {
                     value="used-phones"
                     className="flex items-center gap-1 text-[10px] sm:text-xs"
                   >
-                    <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Used Phones
+                    <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Used
+                    Phones
                   </TabsTrigger>
                   <TabsTrigger
                     value="offers"
@@ -2377,6 +2685,12 @@ export default function Admin() {
                     className="flex items-center gap-1 text-[10px] sm:text-xs"
                   >
                     <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Services
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="technicians"
+                    className="flex items-center gap-1 text-[10px] sm:text-xs"
+                  >
+                    <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Technicians
                   </TabsTrigger>
                   <TabsTrigger
                     value="hero"
@@ -2407,6 +2721,10 @@ export default function Admin() {
 
               <TabsContent value="services">
                 <ServicesSettings />
+              </TabsContent>
+
+              <TabsContent value="technicians">
+                <TechniciansSettings />
               </TabsContent>
 
               <TabsContent value="hero">

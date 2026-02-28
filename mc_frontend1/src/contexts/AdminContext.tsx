@@ -43,6 +43,16 @@ export interface Service {
   icon: string;
 }
 
+// technician representation used across the app
+export interface Technician {
+  id: number;
+  name: string;
+  role: string;
+  image: string;
+  yearsOfExperience?: number;
+  rating?: number;
+}
+
 export interface Phone {
   id: number;
   name: string;
@@ -58,6 +68,7 @@ interface AdminContextType {
   galleryImages: GalleryImage[];
   offers: Offer[];
   services: Service[];
+  technicians: Technician[];
   newPhones: Phone[];
   usedPhones: Phone[];
   updateHeroSettings: (settings: Partial<HeroSettings>) => void;
@@ -70,6 +81,9 @@ interface AdminContextType {
   addService: (service: Omit<Service, "id">) => void;
   updateService: (id: number, service: Partial<Service>) => void;
   removeService: (id: number) => void;
+  addTechnician: (tech: Omit<Technician, "id">) => void;
+  updateTechnician: (id: number, tech: Partial<Technician>) => void;
+  removeTechnician: (id: number) => void;
   addPhone: (type: "new" | "used", phone: Omit<Phone, "id">) => void;
   updatePhone: (
     type: "new" | "used",
@@ -340,6 +354,41 @@ const defaultUsedPhones: Phone[] = [
   },
 ];
 
+const defaultTechnicians: Technician[] = [
+  {
+    id: 1,
+    name: "Rajesh Kumar",
+    role: "Senior Technician",
+    image:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=300",
+    rating: 4.9,
+  },
+  {
+    id: 2,
+    name: "Priya Sharma",
+    role: "Software Specialist",
+    image:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300",
+    rating: 4.8,
+  },
+  {
+    id: 3,
+    name: "Amit Patel",
+    role: "Hardware Expert",
+    image:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300",
+    rating: 4.9,
+  },
+  {
+    id: 4,
+    name: "Sneha Reddy",
+    role: "Customer Support",
+    image:
+      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=300",
+    rating: 5,
+  },
+];
+
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: ReactNode }) {
@@ -361,6 +410,11 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [services, setServices] = useState<Service[]>(() => {
     const stored = localStorage.getItem("admin_services");
     return stored ? JSON.parse(stored) : defaultServices;
+  });
+
+  const [technicians, setTechnicians] = useState<Technician[]>(() => {
+    const stored = localStorage.getItem("admin_technicians");
+    return stored ? JSON.parse(stored) : defaultTechnicians;
   });
 
   const [newPhones, setNewPhones] = useState<Phone[]>(() => {
@@ -420,6 +474,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   }, [services]);
 
   useEffect(() => {
+    localStorage.setItem("admin_technicians", JSON.stringify(technicians));
+  }, [technicians]);
+
+  useEffect(() => {
     localStorage.setItem("admin_newPhones", JSON.stringify(newPhones));
   }, [newPhones]);
 
@@ -431,7 +489,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (!e.key || !e.newValue) return;
-      
+
       // Sync hero settings
       if (e.key === "admin_heroSettings") {
         try {
@@ -525,6 +583,21 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     setServices([...services, { ...service, id: newId }]);
   };
 
+  const addTechnician = (tech: Omit<Technician, "id">) => {
+    const newId = Math.max(...technicians.map((t) => t.id), 0) + 1;
+    setTechnicians([...technicians, { ...tech, id: newId }]);
+  };
+
+  const updateTechnician = (id: number, tech: Partial<Technician>) => {
+    setTechnicians((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...tech } : t)),
+    );
+  };
+
+  const removeTechnician = (id: number) => {
+    setTechnicians((prev) => prev.filter((t) => t.id !== id));
+  };
+
   const updateService = (id: number, service: Partial<Service>) => {
     setServices((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...service } : s)),
@@ -563,6 +636,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         galleryImages,
         offers,
         services,
+        technicians,
         updateHeroSettings,
         addGalleryImage,
         updateGalleryImage,
@@ -573,6 +647,9 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         addService,
         updateService,
         removeService,
+        addTechnician,
+        updateTechnician,
+        removeTechnician,
         newPhones,
         usedPhones,
         addPhone,

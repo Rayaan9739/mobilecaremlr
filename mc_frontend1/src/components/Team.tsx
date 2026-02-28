@@ -2,35 +2,49 @@ import { motion } from "framer-motion";
 import { Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef } from "react";
 
-const team = [
+import { useAdmin, Technician } from "@/contexts/AdminContext";
+
+// fallback data in case context isn't available (shouldn't happen since provider adds defaults)
+const defaultTeam: Technician[] = [
   {
+    id: 1,
     name: "Rajesh Kumar",
     role: "Senior Technician",
-    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=300",
+    image:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=300",
     rating: 4.9,
   },
   {
+    id: 2,
     name: "Priya Sharma",
     role: "Software Specialist",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300",
+    image:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300",
     rating: 4.8,
   },
   {
+    id: 3,
     name: "Amit Patel",
     role: "Hardware Expert",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300",
+    image:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300",
     rating: 4.9,
   },
   {
+    id: 4,
     name: "Sneha Reddy",
     role: "Customer Support",
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=300",
+    image:
+      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=300",
     rating: 5.0,
   },
 ];
 
 export function Team() {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { technicians } = useAdmin();
+  const team =
+    technicians && technicians.length > 0 ? technicians : defaultTeam;
 
   const scroll = (direction: "left" | "right") => {
     if (scrollRef.current) {
@@ -51,8 +65,12 @@ export function Team() {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <p className="text-primary font-display italic text-lg mb-2">Meet The Experts</p>
-          <h2 className="text-2xl md:text-4xl font-bold text-foreground">Our Technicians</h2>
+          <p className="text-primary font-display italic text-lg mb-2">
+            Meet The Experts
+          </p>
+          <h2 className="text-2xl md:text-4xl font-bold text-foreground">
+            Our Technicians
+          </h2>
         </motion.div>
 
         <div className="relative group">
@@ -63,7 +81,7 @@ export function Team() {
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
-          
+
           <button
             onClick={() => scroll("right")}
             className="absolute -right-2 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-card shadow-lg flex items-center justify-center text-primary md:hidden"
@@ -71,7 +89,7 @@ export function Team() {
             <ChevronRight className="w-6 h-6" />
           </button>
 
-          <div 
+          <div
             ref={scrollRef}
             className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto md:overflow-visible pb-8 md:pb-0 snap-x snap-mandatory scrollbar-hide scroll-smooth"
           >
@@ -98,11 +116,21 @@ export function Team() {
                   {/* Content */}
                   <div className="p-6 -mt-8 relative">
                     <div className="bg-card rounded-2xl shadow-soft p-4">
-                      <h3 className="text-lg font-bold text-foreground mb-1">{member.name}</h3>
-                      <p className="text-primary text-sm mb-3">{member.role}</p>
-
-                      {/* Rating */}
-
+                      <h3 className="text-lg font-bold text-foreground mb-1">
+                        {member.name}
+                      </h3>
+                      <p className="text-primary text-sm mb-1">{member.role}</p>
+                      {member.yearsOfExperience != null && (
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {member.yearsOfExperience} yrs experience
+                        </p>
+                      )}
+                      {member.rating != null && (
+                        <div className="flex items-center justify-center gap-1 text-yellow-500">
+                          <Star className="w-4 h-4" />
+                          {member.rating}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

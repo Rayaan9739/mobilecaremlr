@@ -1,7 +1,17 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { motion } from "framer-motion";
-import { Smartphone, Award, Users, Truck, Shield, Headphones, Star, Clock } from "lucide-react";
+import {
+  Smartphone,
+  Award,
+  Users,
+  Truck,
+  Shield,
+  Headphones,
+  Star,
+  Clock,
+} from "lucide-react";
+import { Team } from "@/components/Team";
 
 export default function About() {
   return (
@@ -21,7 +31,8 @@ export default function About() {
                 About Mobile Care
               </h1>
               <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
-                Your trusted destination for premium smartphones, accessories, and expert repair services in Mangaluru.
+                Your trusted destination for premium smartphones, accessories,
+                and expert repair services in Mangaluru.
               </p>
               <a
                 href="/contact"
@@ -48,13 +59,28 @@ export default function About() {
                 </h2>
                 <div className="space-y-4 text-muted-foreground">
                   <p>
-                    At Mobile Care, we specialize in helping you find and discover the best smartphones and accessories to transform the way you live. From great deals to the knowledge of our in-store experts, we'll connect you with the best cell phones, cases, and accessories.
+                    At Mobile Care, we specialize in helping you find and
+                    discover the best smartphones and accessories to transform
+                    the way you live. From great deals to the knowledge of our
+                    in-store experts, we'll connect you with the best cell
+                    phones, cases, and accessories.
                   </p>
                   <p>
-                    We are a genuine smartphone seller that expertise in the field. We focus one and only for mobile and its accessories. That's what makes us different from the other retailers. We don't compromise on quality. We know what type of smartphones the new generation wants. We sell genuine and new smartphones. We wish to make India digital that's why we provide the best smartphones in India.
+                    We are a genuine smartphone seller that expertise in the
+                    field. We focus one and only for mobile and its accessories.
+                    That's what makes us different from the other retailers. We
+                    don't compromise on quality. We know what type of
+                    smartphones the new generation wants. We sell genuine and
+                    new smartphones. We wish to make India digital that's why we
+                    provide the best smartphones in India.
                   </p>
                   <p>
-                    At Mobile Care, our endeavor has always been fulfilling every customers' Smartphone requirement by helping customers choose the best smart phones, as per their needs. Mobile Care's efficient, well-trained and knowledgeable team validates the Smartphone authenticity and Quality so customer receives the best value for money.
+                    At Mobile Care, our endeavor has always been fulfilling
+                    every customers' Smartphone requirement by helping customers
+                    choose the best smart phones, as per their needs. Mobile
+                    Care's efficient, well-trained and knowledgeable team
+                    validates the Smartphone authenticity and Quality so
+                    customer receives the best value for money.
                   </p>
                 </div>
               </motion.div>
@@ -98,33 +124,39 @@ export default function About() {
                 {
                   icon: Award,
                   title: "Genuine Products",
-                  description: "We sell only 100% genuine and new smartphones. Every device is quality validated by our expert team."
+                  description:
+                    "We sell only 100% genuine and new smartphones. Every device is quality validated by our expert team.",
                 },
                 {
                   icon: Users,
                   title: "Expert Guidance",
-                  description: "Our knowledgeable team provides objective advice to help you choose the perfect phone and plan."
+                  description:
+                    "Our knowledgeable team provides objective advice to help you choose the perfect phone and plan.",
                 },
                 {
                   icon: Shield,
                   title: "Quality Assured",
-                  description: "We never compromise on quality. Every smartphone undergoes thorough authenticity verification."
+                  description:
+                    "We never compromise on quality. Every smartphone undergoes thorough authenticity verification.",
                 },
                 {
                   icon: Star,
                   title: "Customer First",
-                  description: "Your satisfaction is our priority. We help find the best phone as per your needs and budget."
+                  description:
+                    "Your satisfaction is our priority. We help find the best phone as per your needs and budget.",
                 },
                 {
                   icon: Truck,
                   title: "In-Store Experience",
-                  description: "Visit us to get hands-on experience with the latest smartphones from all major brands."
+                  description:
+                    "Visit us to get hands-on experience with the latest smartphones from all major brands.",
                 },
                 {
                   icon: Headphones,
                   title: "After-Sales Support",
-                  description: "We're here to help even after your purchase with repairs and technical support."
-                }
+                  description:
+                    "We're here to help even after your purchase with repairs and technical support.",
+                },
               ].map((value, index) => (
                 <motion.div
                   key={index}
@@ -148,7 +180,26 @@ export default function About() {
             </div>
           </div>
         </section>
-
+        {/* 5️⃣ Our Technicians */}
+        <section className="py-16 md:py-20 bg-secondary/10">
+          <div className="container mx-auto px-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-12"
+            >
+              <h2 className="text-2xl font-bold text-foreground mb-4">
+                Our Technicians
+              </h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Meet the skilled professionals who keep your devices running
+                smoothly.
+              </p>
+            </motion.div>
+            <Team />
+          </div>
+        </section>
         {/* 4️⃣ Why Choose Us Section */}
         <section className="py-16 md:py-20">
           <div className="container mx-auto px-4">
@@ -162,7 +213,8 @@ export default function About() {
                 Why Choose Mobile Care
               </h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">
-                Experience the difference of shopping with Mangaluru's trusted smartphone experts
+                Experience the difference of shopping with Mangaluru's trusted
+                smartphone experts
               </p>
             </motion.div>
 
@@ -171,33 +223,39 @@ export default function About() {
                 {
                   icon: Smartphone,
                   title: "All Major Brands",
-                  description: "Apple, Samsung, Xiaomi, Lenovo, Oppo, Asus, Huawei, Infocus, Motorola, Vivo and more."
+                  description:
+                    "Apple, Samsung, Xiaomi, Lenovo, Oppo, Asus, Huawei, Infocus, Motorola, Vivo and more.",
                 },
                 {
                   icon: Award,
                   title: "Best Deals",
-                  description: "Great deals on the latest smartphones with competitive pricing."
+                  description:
+                    "Great deals on the latest smartphones with competitive pricing.",
                 },
                 {
                   icon: Users,
                   title: "Expert Setup",
-                  description: "We set up your new phone and show you all the cool features."
+                  description:
+                    "We set up your new phone and show you all the cool features.",
                 },
                 {
                   icon: Shield,
                   title: "Plan Comparison",
-                  description: "Objective advice on choosing the perfect cell phone plan from major carriers."
+                  description:
+                    "Objective advice on choosing the perfect cell phone plan from major carriers.",
                 },
                 {
                   icon: Star,
                   title: "Authenticity Guaranteed",
-                  description: "Every device is quality validated by our trained team."
+                  description:
+                    "Every device is quality validated by our trained team.",
                 },
                 {
                   icon: Clock,
                   title: "Quick Service",
-                  description: "Fast and efficient service for all your smartphone needs."
-                }
+                  description:
+                    "Fast and efficient service for all your smartphone needs.",
+                },
               ].map((item, index) => (
                 <motion.div
                   key={index}
@@ -232,7 +290,7 @@ export default function About() {
                 { number: "10+", label: "Years Experience" },
                 { number: "50+", label: "Phone Brands" },
                 { number: "10000+", label: "Happy Customers" },
-                { number: "100%", label: "Genuine Products" }
+                { number: "100%", label: "Genuine Products" },
               ].map((stat, index) => (
                 <motion.div
                   key={index}
@@ -244,9 +302,7 @@ export default function About() {
                   <div className="text-3xl md:text-4xl font-bold mb-1">
                     {stat.number}
                   </div>
-                  <div className="text-sm opacity-80">
-                    {stat.label}
-                  </div>
+                  <div className="text-sm opacity-80">{stat.label}</div>
                 </motion.div>
               ))}
             </div>
@@ -266,7 +322,8 @@ export default function About() {
                 Ready to Find Your Perfect Phone?
               </h2>
               <p className="text-muted-foreground mb-6">
-                Visit our store or contact us today to explore the latest smartphones and get expert advice.
+                Visit our store or contact us today to explore the latest
+                smartphones and get expert advice.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a

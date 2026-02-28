@@ -7,8 +7,6 @@ import { PopularProducts } from "@/components/PopularProducts";
 import { UsedPhones } from "@/components/UsedPhones";
 import { Gallery } from "@/components/Gallery";
 import { Stats } from "@/components/Stats";
-import { Team } from "@/components/Team";
-import { Testimonials } from "@/components/Testimonials";
 import { Footer } from "@/components/Footer";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 
@@ -27,8 +25,6 @@ const Index = () => {
         <UsedPhones />
         <Gallery />
         <Stats />
-        <Team />
-        <Testimonials />
       </main>
       <Footer />
       <WhatsAppButton />
