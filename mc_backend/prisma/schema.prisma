@@ -7,26 +7,25 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  fullName      String
-  email         String    @unique
-  phone         String    @unique
-  password      String
-  role          Role      @default(USER)
-  emailVerified Boolean   @default(false)
-  phoneVerified Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  dob           DateTime?
-  // Address fields directly in user table
-  addressLine1        String?
-  addressLine2        String?
-  city                String?
-  state               String?
-  pincode             String?
-  landmark            String?
-  isDefaultAddress    Boolean  @default(true)
-  orders              Order[]
+  id               String    @id @default(cuid())
+  fullName         String
+  email            String    @unique
+  phone            String    @unique
+  password         String
+  role             Role      @default(USER)
+  emailVerified    Boolean   @default(false)
+  phoneVerified    Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  dob              DateTime?
+  addressLine1     String?
+  addressLine2     String?
+  city             String?
+  isDefaultAddress Boolean   @default(true)
+  landmark         String?
+  pincode          String?
+  state            String?
+  orders           Order[]
 
   @@map("users")
 }
@@ -118,6 +117,53 @@ model PasswordResetOtp {
   @@map("password_reset_otps")
 }
 
+model Notification {
+  id           String           @id @default(cuid())
+  kind         String?          @default("repair")
+  name         String?
+  mobileNumber String?
+  phoneBrand   String?
+  phoneModel   String?
+  issues       Json             @default("[]")
+  otherIssue   String?          @default("")
+  visitDate    String?          @default("")
+  message      String
+  replied      Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  type         NotificationType @default(REPAIR)
+  title        String?
+  data         Json?
+  expiresAt    DateTime?
+
+  @@map("notifications")
+}
+
+model content_settings {
+  id          String    @id @default(dbgenerated("gen_random_uuid()"))
+  hero        Json?
+  technicians Json?
+  gallery     Json?
+  services    Json?
+  updated_at  DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model playing_with_neon {
+  id    Int    @id @default(autoincrement())
+  name  String
+  value Float? @db.Real
+}
+
+model ImageAsset {
+  id        String   @id @default(cuid())
+  section   String
+  title     String?
+  imageUrl  String
+  publicId  String
+  createdAt DateTime @default(now())
+
+  @@index([section])
+}
+
 enum Role {
   USER
   ADMIN
@@ -141,37 +187,4 @@ enum NotificationType {
   CONTACT
   ORDER
   CART_ORDER
-}
-
-model Notification {
-  id           String           @id @default(cuid())
-  // legacy fields (kept for backward compatibility with existing UI)
-  kind         String?          @default("repair")
-  name         String?
-  mobileNumber String?
-  phoneBrand   String?
-  phoneModel   String?
-  issues       Json             @default("[]")
-  otherIssue   String?          @default("")
-  visitDate    String?          @default("")
-  message      String
-  replied      Boolean          @default(false)
-  createdAt    DateTime         @default(now())
-
-  // new unified model fields
-  type         NotificationType @default(REPAIR)
-  title        String?
-  data         Json?
-  expiresAt    DateTime?
-
-  @@map("notifications")
-}
-
-model content_settings {
-  id           String   @id @default(cuid())
-  hero         Json?
-  technicians  Json?
-  gallery      Json?
-  services     Json?
-  updated_at   DateTime @default(now())
 }

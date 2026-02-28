@@ -10,6 +10,33 @@ import api from "@/lib/api";
 // Cross-tab sync event name
 const SYNC_EVENT_NAME = "mc-data-sync";
 
+// API helper for assets
+const uploadToAssetAPI = async (file: File, section: string, title?: string) => {
+  const formData = new FormData();
+  formData.append("image", file);
+  formData.append("section", section);
+  if (title) formData.append("title", title);
+  
+  const response = await api("/admin/assets", {
+    method: "POST",
+    body: formData,
+  });
+  return response as { id: string; imageUrl: string; publicId: string };
+};
+
+const fetchFromAssetAPI = async (section: string) => {
+  const response = await api(`/admin/assets?section=${section}`, {
+    method: "GET",
+  });
+  return response as { id: string; imageUrl: string; title: string }[];
+};
+
+const deleteFromAssetAPI = async (id: string) => {
+  await api(`/admin/assets/${id}`, {
+    method: "DELETE",
+  });
+};
+
 export interface HeroSettings {
   tagline: string;
   title: string;
@@ -22,6 +49,7 @@ export interface GalleryImage {
   id: number;
   url: string;
   alt: string;
+  assetId?: string; // Cloudinary asset ID for deletion
 }
 
 export interface Offer {
@@ -429,6 +457,38 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     return stored ? JSON.parse(stored) : defaultUsedPhones;
   });
 
+  // Load data from API on mount
+  useEffect(() => {
+    const loadFromAPI = async () => {
+      try {
+        // Load hero settings
+        const heroAssets = await fetchFromAssetAPI("hero");
+        if (heroAssets.length > 0) {
+          setHeroSettings((prev) => ({
+            ...prev,
+            backgroundImage: heroAssets[0].imageUrl,
+          }));
+        }
+        
+        // Load gallery images
+        const galleryAssets = await fetchFromAssetAPI("gallery");
+        if (galleryAssets.length > 0) {
+          setGalleryImages(
+            galleryAssets.map((asset, idx) => ({
+              id: idx + 1,
+              url: asset.imageUrl,
+              alt: asset.title || "Gallery image",
+              assetId: asset.id, // Store asset ID for deletion
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to load from API:", err);
+      }
+    };
+    loadFromAPI();
+  }, []);
+
   useEffect(() => {
     localStorage.setItem("admin_heroSettings", JSON.stringify(heroSettings));
   }, [heroSettings]);
@@ -546,13 +606,52 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  const updateHeroSettings = (settings: Partial<HeroSettings>) => {
-    setHeroSettings((prev) => ({ ...prev, ...settings }));
+  const updateHeroSettings = async (settings: Partial<HeroSettings>) => {
+    // Check if backgroundImage is a File object (new upload)
+    const bgImage = settings.backgroundImage as unknown;
+    if (bgImage && typeof bgImage === 'object' && (bgImage as File).name && (bgImage as File).size) {
+      try {
+        const file = bgImage as File;
+        const result = await uploadToAssetAPI(file, "hero", "Hero background");
+        setHeroSettings((prev) => ({ 
+          ...prev, 
+          ...settings,
+          backgroundImage: result.imageUrl 
+        }));
+      } catch (err) {
+        console.error("Failed to upload hero image:", err);
+        // Still update other settings even if upload fails
+        setHeroSettings((prev) => ({ ...prev, ...settings }));
+      }
+    } else {
+      setHeroSettings((prev) => ({ ...prev, ...settings }));
+    }
   };
 
-  const addGalleryImage = (image: Omit<GalleryImage, "id">) => {
-    const newId = Math.max(...galleryImages.map((g) => g.id), 0) + 1;
-    setGalleryImages([...galleryImages, { ...image, id: newId }]);
+  const addGalleryImage = async (image: Omit<GalleryImage, "id">) => {
+    // Check if url is a File object (new upload)
+    const url = image.url as unknown;
+    if (url && typeof url === 'object' && (url as File).name && (url as File).size) {
+      try {
+        const file = url as File;
+        const result = await uploadToAssetAPI(file, "gallery", image.alt);
+        const newId = Math.max(...galleryImages.map((g) => g.id), 0) + 1;
+        setGalleryImages([...galleryImages, { 
+          ...image, 
+          url: result.imageUrl,
+          id: newId,
+          assetId: result.id 
+        }]);
+      } catch (err) {
+        console.error("Failed to upload gallery image:", err);
+        // Still add locally if upload fails
+        const newId = Math.max(...galleryImages.map((g) => g.id), 0) + 1;
+        setGalleryImages([...galleryImages, { ...image, id: newId }]);
+      }
+    } else {
+      const newId = Math.max(...galleryImages.map((g) => g.id), 0) + 1;
+      setGalleryImages([...galleryImages, { ...image, id: newId }]);
+    }
   };
 
   const updateGalleryImage = (id: number, image: Partial<GalleryImage>) => {
@@ -561,7 +660,16 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const removeGalleryImage = (id: number) => {
+  const removeGalleryImage = async (id: number) => {
+    // Find the image first to check for assetId
+    const image = galleryImages.find((g) => g.id === id);
+    if (image?.assetId) {
+      try {
+        await deleteFromAssetAPI(image.assetId);
+      } catch (err) {
+        console.error("Failed to delete from Cloudinary:", err);
+      }
+    }
     setGalleryImages((prev) => prev.filter((g) => g.id !== id));
   };
 

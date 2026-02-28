@@ -28,6 +28,7 @@ console.log("[server] uploadRoutes imported, typeof =", typeof uploadRoutes);
 const devRoutes = require("./routes/dev");
 console.log("[server] devRoutes imported, typeof =", typeof devRoutes);
 const contentRoutes = require("./routes/content"); // ✅ NEW
+const assetRoutes = require("./routes/assets");
 console.log("[server] contentRoutes imported, typeof =", typeof contentRoutes);
 const prisma = require("./utils/prisma");
 const { ensureAdminExists } = require("./utils/ensureAdmin");
@@ -127,6 +128,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api", uploadRoutes);
 app.use("/api/dev", devRoutes);
 app.use("/api/content", contentRoutes); // ✅ NEW CONTENT API
+app.use("/api/admin", assetRoutes);
 const notificationsRoutes = require("./routes/notifications");
 console.log(
   "[server] notificationsRoutes imported (inline), typeof =",

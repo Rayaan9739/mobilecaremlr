@@ -1473,31 +1473,47 @@ function HeroSettings() {
   const [backgroundImage, setBackgroundImage] = useState(
     heroSettings.backgroundImage,
   );
+  const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const handleImageUpload = async (file: File) => {
     try {
       setIsUploading(true);
-      const url = await uploadImage(file);
-      setBackgroundImage(url);
-      toast.success("Image uploaded successfully");
+      // Store the file for upload to Cloudinary on save
+      setBackgroundFile(file);
+      // Show preview
+      const previewUrl = URL.createObjectURL(file);
+      setBackgroundImage(previewUrl);
+      toast.success("Image selected. Click Save to upload to cloud.");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Image upload failed",
+        error instanceof Error ? error.message : "Image selection failed",
       );
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleSave = () => {
-    updateHeroSettings({
-      tagline,
-      title,
-      titleHighlight,
-      subtitle,
-      backgroundImage,
-    });
+  const handleSave = async () => {
+    // If there's a new file, pass it to updateHeroSettings
+    // Otherwise just pass the image URL
+    if (backgroundFile) {
+      await updateHeroSettings({
+        tagline,
+        title,
+        titleHighlight,
+        subtitle,
+        backgroundImage: backgroundFile,
+      });
+    } else {
+      updateHeroSettings({
+        tagline,
+        title,
+        titleHighlight,
+        subtitle,
+        backgroundImage,
+      });
+    }
     toast.success("Hero settings updated successfully");
   };
 
@@ -1622,30 +1638,39 @@ function GalleryImageForm(
   const { uploadImage } = useAdmin();
   const [url, setUrl] = useState(image?.url || "");
   const [alt, setAlt] = useState(image?.alt || "");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const handleImageUpload = async (file: File) => {
     try {
       setIsUploading(true);
-      const uploadedUrl = await uploadImage(file);
-      setUrl(uploadedUrl);
-      toast.success("Image uploaded successfully");
+      // Store file for upload on submit
+      setSelectedFile(file);
+      // Show preview
+      const previewUrl = URL.createObjectURL(file);
+      setUrl(previewUrl);
+      toast.success("Image selected. Click Save to upload to cloud.");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Image upload failed",
+        error instanceof Error ? error.message : "Image selection failed",
       );
     } finally {
       setIsUploading(false);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url) {
-      toast.error("Image URL is required");
+      toast.error("Image is required");
       return;
     }
-    onSubmit({ url, alt: alt || "Gallery image" });
+    // Pass the File object to trigger Cloudinary upload in context
+    if (selectedFile) {
+      onSubmit({ url: selectedFile, alt: alt || "Gallery image" });
+    } else {
+      onSubmit({ url, alt: alt || "Gallery image" });
+    }
   };
 
   return (
