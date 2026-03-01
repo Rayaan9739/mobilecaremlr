@@ -13,8 +13,7 @@
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",
-    "@prisma/client": "^7.4.1",
-    "prisma": "^7.4.1",
+    "@prisma/client": "^7.4.2",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.0",
     "cors": "^2.8.5",
@@ -28,6 +27,7 @@
     "multer-storage-cloudinary": "4.0.0",
     "nodemailer": "^8.0.1",
     "pg": "^8.17.2",
+    "prisma": "^7.4.2",
     "twilio": "^4.19.0"
   },
   "devDependencies": {
