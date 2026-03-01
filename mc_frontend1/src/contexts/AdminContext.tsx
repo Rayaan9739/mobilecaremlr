@@ -6,6 +6,15 @@ import {
   ReactNode,
 } from "react";
 import api from "@/lib/api";
+import {
+  fetchHeroAsset,
+  fetchGalleryAssets,
+  fetchTechnicians,
+  createTechnician,
+  updateTechnician as updateTechApi,
+  deleteTechnician,
+  Technician,
+} from "@/services/assetService";
 
 // Cross-tab sync event name
 const SYNC_EVENT_NAME = "mc-data-sync";
@@ -714,19 +723,55 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     setServices([...services, { ...service, id: newId }]);
   };
 
-  const addTechnician = (tech: Omit<Technician, "id">) => {
-    const newId = Math.max(...technicians.map((t) => t.id), 0) + 1;
-    setTechnicians([...technicians, { ...tech, id: newId }]);
+  const addTechnician = async (tech: Omit<Technician, "id">) => {
+    try {
+      // Call the backend API to create technician
+      const newTechnician = await createTechnician(tech);
+      // Refetch all technicians to get the updated list
+      const updatedList = await fetchTechnicians();
+      setTechnicians(updatedList);
+      // Dispatch event to notify other components
+      window.dispatchEvent(new Event("mc_technician_update"));
+    } catch (err) {
+      console.error("Failed to add technician:", err);
+      // Fallback to local state if API fails
+      const newId = Math.max(...technicians.map((t) => t.id), 0) + 1;
+      setTechnicians([...technicians, { ...tech, id: newId }]);
+    }
   };
 
-  const updateTechnician = (id: number, tech: Partial<Technician>) => {
-    setTechnicians((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...tech } : t)),
-    );
+  const updateTechnician = async (id: number, tech: Partial<Technician>) => {
+    try {
+      // Call the backend API to update technician
+      await updateTechApi(id, tech);
+      // Refetch all technicians to get the updated list
+      const updatedList = await fetchTechnicians();
+      setTechnicians(updatedList);
+      // Dispatch event to notify other components
+      window.dispatchEvent(new Event("mc_technician_update"));
+    } catch (err) {
+      console.error("Failed to update technician:", err);
+      // Fallback to local state if API fails
+      setTechnicians((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, ...tech } : t)),
+      );
+    }
   };
 
-  const removeTechnician = (id: number) => {
-    setTechnicians((prev) => prev.filter((t) => t.id !== id));
+  const removeTechnician = async (id: number) => {
+    try {
+      // Call the backend API to delete technician
+      await deleteTechnician(id);
+      // Refetch all technicians to get the updated list
+      const updatedList = await fetchTechnicians();
+      setTechnicians(updatedList);
+      // Dispatch event to notify other components
+      window.dispatchEvent(new Event("mc_technician_update"));
+    } catch (err) {
+      console.error("Failed to delete technician:", err);
+      // Fallback to local state if API fails
+      setTechnicians((prev) => prev.filter((t) => t.id !== id));
+    }
   };
 
   const updateService = (id: number, service: Partial<Service>) => {

@@ -62,3 +62,37 @@ export async function fetchTechnicians(): Promise<Technician[]> {
   });
   return response as Technician[];
 }
+
+/**
+ * Create a new technician (admin only)
+ * POST /api/technicians
+ */
+export async function createTechnician(tech: Omit<Technician, "id">): Promise<Technician> {
+  const response = await api<Technician>("/technicians", {
+    method: "POST",
+    body: JSON.stringify(tech),
+  });
+  return response as Technician;
+}
+
+/**
+ * Update a technician (admin only)
+ * PUT /api/technicians/:id
+ */
+export async function updateTechnician(id: number, tech: Partial<Technician>): Promise<Technician> {
+  const response = await api<Technician>(`/technicians/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(tech),
+  });
+  return response as Technician;
+}
+
+/**
+ * Delete a technician (admin only)
+ * DELETE /api/technicians/:id
+ */
+export async function deleteTechnician(id: number): Promise<void> {
+  await api(`/technicians/${id}`, {
+    method: "DELETE",
+  });
+}
