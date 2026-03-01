@@ -3,17 +3,54 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAdmin } from "@/contexts/AdminContext";
+import { useEffect, useState, useCallback } from "react";
+import { fetchHeroAsset } from "@/services/assetService";
 
 export function Hero() {
   const navigate = useNavigate();
   const { heroSettings } = useAdmin();
+  const [backgroundImage, setBackgroundImage] = useState<string>("");
 
-  // Use hero settings from AdminContext, fallback to defaults if not set
+  const loadHeroImage = useCallback(async () => {
+    try {
+      const response = await fetchHeroAsset();
+      if (response.url) {
+        setBackgroundImage(response.url);
+      }
+    } catch (err) {
+      console.error("Failed to load hero image:", err);
+    }
+  }, []);
+
+  // Fetch hero image from public API on mount
+  useEffect(() => {
+    loadHeroImage();
+  }, [loadHeroImage]);
+
+  // Listen for storage changes to refresh after admin upload
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "admin_heroSettings" || e.key === "mc_asset_update") {
+        loadHeroImage();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [loadHeroImage]);
+
+  // Also listen for custom event (for same-tab updates)
+  useEffect(() => {
+    const handleAssetUpdate = () => loadHeroImage();
+    window.addEventListener("mc_asset_update", handleAssetUpdate);
+    return () =>
+      window.removeEventListener("mc_asset_update", handleAssetUpdate);
+  }, [loadHeroImage]);
+
+  // Use hero settings from AdminContext for text, but image from API
   const tagline = heroSettings?.tagline || "Get best mobile experience with us";
   const title = heroSettings?.title || "Premium Mobiles &";
   const titleHighlight = heroSettings?.titleHighlight || "Accessories";
   const subtitle = heroSettings?.subtitle || "Upgrade Your Lifestyle Today";
-  const backgroundImage = heroSettings?.backgroundImage;
 
   return (
     <section className="relative min-h-[70vh] sm:min-h-[80vh] flex items-center pt-32 md:pt-40 pb-32 overflow-hidden">
@@ -58,7 +95,8 @@ export function Hero() {
             transition={{ delay: 0.3 }}
             className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-primary-foreground mb-4 leading-tight"
           >
-            {title}<br />
+            {title}
+            <br />
             <span className="text-gradient">{titleHighlight}</span>
           </motion.h1>
 
@@ -80,7 +118,7 @@ export function Hero() {
             <Button
               size="lg"
               className="btn-gradient text-primary-foreground rounded-full px-8 shadow-soft hover:shadow-elevated transition-all text-lg"
-              onClick={() => navigate('/mobiles-accessories')}
+              onClick={() => navigate("/mobiles-accessories")}
             >
               Explore Collection
               <ArrowRight className="w-5 h-5 ml-2" />
@@ -88,7 +126,7 @@ export function Hero() {
             <Button
               size="lg"
               variant="outline"
-              onClick={() => navigate('/services')}
+              onClick={() => navigate("/services")}
               className="bg-transparent border-2 border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-foreground rounded-full px-8 text-lg cursor-pointer transition-all"
             >
               Our Services

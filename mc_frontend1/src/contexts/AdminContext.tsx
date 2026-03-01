@@ -11,12 +11,16 @@ import api from "@/lib/api";
 const SYNC_EVENT_NAME = "mc-data-sync";
 
 // API helper for assets
-const uploadToAssetAPI = async (file: File, section: string, title?: string) => {
+const uploadToAssetAPI = async (
+  file: File,
+  section: string,
+  title?: string,
+) => {
   const formData = new FormData();
   formData.append("image", file);
   formData.append("section", section);
   if (title) formData.append("title", title);
-  
+
   const response = await api("/admin/assets", {
     method: "POST",
     body: formData,
@@ -469,7 +473,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
             backgroundImage: heroAssets[0].imageUrl,
           }));
         }
-        
+
         // Load gallery images
         const galleryAssets = await fetchFromAssetAPI("gallery");
         if (galleryAssets.length > 0) {
@@ -479,7 +483,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
               url: asset.imageUrl,
               alt: asset.title || "Gallery image",
               assetId: asset.id, // Store asset ID for deletion
-            }))
+            })),
           );
         }
       } catch (err) {
@@ -609,15 +613,22 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const updateHeroSettings = async (settings: Partial<HeroSettings>) => {
     // Check if backgroundImage is a File object (new upload)
     const bgImage = settings.backgroundImage as unknown;
-    if (bgImage && typeof bgImage === 'object' && (bgImage as File).name && (bgImage as File).size) {
+    if (
+      bgImage &&
+      typeof bgImage === "object" &&
+      (bgImage as File).name &&
+      (bgImage as File).size
+    ) {
       try {
         const file = bgImage as File;
         const result = await uploadToAssetAPI(file, "hero", "Hero background");
-        setHeroSettings((prev) => ({ 
-          ...prev, 
+        setHeroSettings((prev) => ({
+          ...prev,
           ...settings,
-          backgroundImage: result.imageUrl 
+          backgroundImage: result.imageUrl,
         }));
+        // Dispatch custom event to notify other components to refresh
+        window.dispatchEvent(new Event("mc_asset_update"));
       } catch (err) {
         console.error("Failed to upload hero image:", err);
         // Still update other settings even if upload fails
@@ -631,17 +642,27 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const addGalleryImage = async (image: Omit<GalleryImage, "id">) => {
     // Check if url is a File object (new upload)
     const url = image.url as unknown;
-    if (url && typeof url === 'object' && (url as File).name && (url as File).size) {
+    if (
+      url &&
+      typeof url === "object" &&
+      (url as File).name &&
+      (url as File).size
+    ) {
       try {
         const file = url as File;
         const result = await uploadToAssetAPI(file, "gallery", image.alt);
         const newId = Math.max(...galleryImages.map((g) => g.id), 0) + 1;
-        setGalleryImages([...galleryImages, { 
-          ...image, 
-          url: result.imageUrl,
-          id: newId,
-          assetId: result.id 
-        }]);
+        setGalleryImages([
+          ...galleryImages,
+          {
+            ...image,
+            url: result.imageUrl,
+            id: newId,
+            assetId: result.id,
+          },
+        ]);
+        // Dispatch custom event to notify other components to refresh
+        window.dispatchEvent(new Event("mc_asset_update"));
       } catch (err) {
         console.error("Failed to upload gallery image:", err);
         // Still add locally if upload fails
@@ -743,19 +764,21 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     try {
       const formData = new FormData();
       formData.append("image", file);
-      
-      const response = await api("/upload", {
+
+      const response = (await api("/upload", {
         method: "POST",
         body: formData,
-      }) as { url: string };
-      
+      })) as { url: string };
+
       if (!response.url) {
         throw new Error("Upload failed - no URL returned");
       }
-      
+
       return response.url;
     } catch (err) {
-      throw new Error(err instanceof Error ? err.message : "Image upload failed");
+      throw new Error(
+        err instanceof Error ? err.message : "Image upload failed",
+      );
     }
   };
 

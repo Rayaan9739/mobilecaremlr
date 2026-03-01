@@ -8,42 +8,96 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Upload image to Cloudinary and create asset record
+// Upload image (file or URL) and create asset record
 exports.uploadImage = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
+    const { section, title, url } = req.body;
+    const file = req.file;
+
+    // Check if either file or URL is provided
+    if (!file && !url) {
+      return res.status(400).json({ error: "No image provided" });
     }
 
-    // Upload to Cloudinary
-    const uploadResult = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: "mobile-care-assets",
-          resource_type: "image",
+    let imageUrl;
+    let publicId;
+
+    // If file is provided, upload to Cloudinary
+    if (file) {
+      const uploadResult = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: "mobile-care-assets",
+            resource_type: "image",
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          },
+        );
+
+        // Convert buffer to stream
+        const stream = require("stream");
+        const bufferStream = new stream.PassThrough();
+        bufferStream.end(file.buffer);
+        bufferStream.pipe(uploadStream);
+      });
+
+      imageUrl = uploadResult.secure_url;
+      publicId = uploadResult.public_id;
+    } else {
+      // Use provided URL directly (skip Cloudinary)
+      imageUrl = url;
+      publicId = null; // No Cloudinary public ID for external URLs
+    }
+
+    // For hero section: upsert (update if exists, create if not)
+    if (section === "hero") {
+      const existingHero = await prisma.imageAsset.findFirst({
+        where: { section: "hero" },
+      });
+
+      // Delete old image from Cloudinary if exists and was uploaded to Cloudinary
+      if (existingHero && existingHero.publicId) {
+        try {
+          await cloudinary.uploader.destroy(existingHero.publicId);
+        } catch (err) {
+          console.error("Failed to delete old image from Cloudinary:", err);
+        }
+      }
+
+      // Delete existing row if exists
+      if (existingHero) {
+        await prisma.imageAsset.delete({ where: { id: existingHero.id } });
+      }
+
+      // Create new asset
+      const asset = await prisma.imageAsset.create({
+        data: {
+          section: "hero",
+          title: title || null,
+          imageUrl: imageUrl,
+          publicId: publicId || "",
         },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        },
-      );
+      });
 
-      // Convert buffer to stream
-      const stream = require("stream");
-      const bufferStream = new stream.PassThrough();
-      bufferStream.end(req.file.buffer);
-      bufferStream.pipe(uploadStream);
-    });
+      return res.json({
+        success: true,
+        id: asset.id,
+        imageUrl: asset.imageUrl,
+        publicId: asset.publicId,
+        title: asset.title,
+        section: asset.section,
+      });
+    }
 
-    const { section, title } = req.body;
-
-    // Create asset record in database
+    // For gallery section: create new row (allow multiple images)
     const asset = await prisma.imageAsset.create({
       data: {
-        section: section || "general",
+        section: section || "gallery",
         title: title || null,
-        imageUrl: uploadResult.secure_url,
-        publicId: uploadResult.public_id,
+        imageUrl: imageUrl,
+        publicId: publicId || "",
       },
     });
 
@@ -61,28 +115,50 @@ exports.uploadImage = async (req, res) => {
   }
 };
 
-// Get assets by section
+// Get assets by section - Public endpoint (no auth required)
 exports.getAssets = async (req, res) => {
   try {
     const { section } = req.query;
 
-    const where = section ? { section } : {};
+    if (!section) {
+      return res.status(400).json({ error: "Section parameter is required" });
+    }
 
     const assets = await prisma.imageAsset.findMany({
-      where,
+      where: { section },
       orderBy: { createdAt: "desc" },
     });
 
-    // Return in format expected by frontend
-    const formattedAssets = assets.map((asset) => ({
-      id: asset.id,
-      imageUrl: asset.imageUrl,
-      publicId: asset.publicId,
-      title: asset.title,
-      section: asset.section,
-    }));
-
-    res.json(formattedAssets);
+    // Standardize response based on section type
+    if (section === "hero") {
+      // Hero: Return single object with section and url
+      const heroAsset = assets[0];
+      return res.json({
+        section: "hero",
+        url: heroAsset ? heroAsset.imageUrl : null,
+      });
+    } else if (section === "gallery") {
+      // Gallery: Return array of images
+      return res.json({
+        section: "gallery",
+        images: assets.map((asset) => ({
+          id: asset.id,
+          url: asset.imageUrl,
+          title: asset.title,
+        })),
+      });
+    } else {
+      // Generic section response
+      return res.json(
+        assets.map((asset) => ({
+          id: asset.id,
+          imageUrl: asset.imageUrl,
+          publicId: asset.publicId,
+          title: asset.title,
+          section: asset.section,
+        })),
+      );
+    }
   } catch (error) {
     console.error("Get assets error:", error);
     res.status(500).json({ error: "Failed to fetch assets" });
