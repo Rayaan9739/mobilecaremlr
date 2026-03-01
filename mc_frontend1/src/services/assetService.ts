@@ -21,6 +21,15 @@ export interface GalleryAssetResponse {
   images: GalleryImage[];
 }
 
+export interface Technician {
+  id: number;
+  name: string;
+  role: string;
+  image: string;
+  yearsOfExperience?: number;
+  rating?: number;
+}
+
 /**
  * Fetch hero image from public API
  * GET /api/assets?section=hero
@@ -41,4 +50,15 @@ export async function fetchGalleryAssets(): Promise<GalleryAssetResponse> {
     method: "GET",
   });
   return response as GalleryAssetResponse;
+}
+
+/**
+ * Fetch technicians from public API
+ * GET /api/technicians
+ */
+export async function fetchTechnicians(): Promise<Technician[]> {
+  const response = await api<Technician[]>("/technicians", {
+    method: "GET",
+  });
+  return response as Technician[];
 }

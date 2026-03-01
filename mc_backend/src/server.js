@@ -30,6 +30,7 @@ console.log("[server] devRoutes imported, typeof =", typeof devRoutes);
 const contentRoutes = require("./routes/content"); // ✅ NEW
 const assetRoutes = require("./routes/assets");
 const publicAssetRoutes = require("./routes/publicAssets"); // Public asset routes
+const technicianRoutes = require("./routes/technicians"); // Technicians routes
 console.log("[server] contentRoutes imported, typeof =", typeof contentRoutes);
 const prisma = require("./utils/prisma");
 const { ensureAdminExists } = require("./utils/ensureAdmin");
@@ -78,8 +79,14 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, etc.)
       if (!origin) return callback(null, true);
+
+      // Check if origin is in allowed list
       if (allowedOrigins.includes(origin)) return callback(null, true);
+
+      // Allow any Vercel deployment (preview deployments)
+      if (origin.includes("vercel.app")) return callback(null, true);
 
       console.log("❌ Blocked by CORS:", origin);
       return callback(new Error("Not allowed by CORS"));
@@ -131,6 +138,7 @@ app.use("/api/dev", devRoutes);
 app.use("/api/content", contentRoutes); // ✅ NEW CONTENT API
 app.use("/api/admin", assetRoutes);
 app.use("/api", publicAssetRoutes); // Public asset routes (GET only)
+app.use("/api/technicians", technicianRoutes); // Technicians API
 const notificationsRoutes = require("./routes/notifications");
 console.log(
   "[server] notificationsRoutes imported (inline), typeof =",

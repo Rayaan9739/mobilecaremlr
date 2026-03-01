@@ -3,11 +3,31 @@ import { Footer } from "@/components/Footer";
 import { motion } from "framer-motion";
 import { Smartphone, Award, Users, Truck, Shield, Headphones, Star, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAdmin } from "@/contexts/AdminContext";
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
+import { fetchTechnicians, Technician } from "@/services/assetService";
 
 export default function About() {
-  const { technicians } = useAdmin();
+  const { technicians: adminTechnicians } = useAdmin();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch technicians from public API
+  useEffect(() => {
+    const loadTechnicians = async () => {
+      try {
+        const data = await fetchTechnicians();
+        setTechnicians(data);
+      } catch (err) {
+        console.error("Failed to load technicians:", err);
+        // Fallback to admin context data if API fails
+        setTechnicians(adminTechnicians as Technician[]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTechnicians();
+  }, [adminTechnicians]);
 
   const scroll = (direction: "left" | "right") => {
     if (scrollRef.current) {
@@ -21,58 +41,70 @@ export default function About() {
 
   const TechniciansSection = () => (
     <div className="relative group">
-      <button
-        onClick={() => scroll("left")}
-        className="absolute -left-2 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-card shadow-lg flex items-center justify-center text-primary md:hidden"
-      >
-        <ChevronLeft className="w-6 h-6" />
-      </button>
-      
-      <button
-        onClick={() => scroll("right")}
-        className="absolute -right-2 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-card shadow-lg flex items-center justify-center text-primary md:hidden"
-      >
-        <ChevronRight className="w-6 h-6" />
-      </button>
-
-      <div 
-        ref={scrollRef}
-        className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto md:overflow-visible pb-8 md:pb-0 snap-x snap-mandatory scrollbar-hide scroll-smooth"
-      >
-        {technicians.map((member, index) => (
-          <motion.div
-            key={member.id}
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: index * 0.1 }}
-            className="group flex-shrink-0 w-[280px] sm:w-[calc(50%-12px)] md:w-auto snap-start"
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      ) : technicians.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          No technicians available
+        </div>
+      ) : (
+        <>
+          <button
+            onClick={() => scroll("left")}
+            className="absolute -left-2 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-card shadow-lg flex items-center justify-center text-primary md:hidden"
           >
-            <div className="bg-card rounded-3xl overflow-hidden shadow-card card-hover text-center h-full">
-              <div className="relative h-64 overflow-hidden">
-                <img
-                  src={member.image}
-                  alt={member.name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-foreground/50 to-transparent" />
-              </div>
-              <div className="p-6 -mt-8 relative">
-                <div className="bg-card rounded-2xl shadow-soft p-4">
-                  <h3 className="text-lg font-bold text-foreground mb-1">{member.name}</h3>
-                  <p className="text-primary text-sm mb-3">{member.role}</p>
-                  {member.rating && (
-                    <div className="flex items-center justify-center gap-1">
-                      <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                      <span className="text-sm font-semibold text-foreground">{member.rating}</span>
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          
+          <button
+            onClick={() => scroll("right")}
+            className="absolute -right-2 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-card shadow-lg flex items-center justify-center text-primary md:hidden"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
+
+          <div 
+            ref={scrollRef}
+            className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto md:overflow-visible pb-8 md:pb-0 snap-x snap-mandatory scrollbar-hide scroll-smooth"
+          >
+            {technicians.map((member, index) => (
+              <motion.div
+                key={member.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="group flex-shrink-0 w-[280px] sm:w-[calc(50%-12px)] md:w-auto snap-start"
+              >
+                <div className="bg-card rounded-3xl overflow-hidden shadow-card card-hover text-center h-full">
+                  <div className="relative h-64 overflow-hidden">
+                    <img
+                      src={member.image}
+                      alt={member.name}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-foreground/50 to-transparent" />
+                  </div>
+                  <div className="p-6 -mt-8 relative">
+                    <div className="bg-card rounded-2xl shadow-soft p-4">
+                      <h3 className="text-lg font-bold text-foreground mb-1">{member.name}</h3>
+                      <p className="text-primary text-sm mb-3">{member.role}</p>
+                      {member.rating && (
+                        <div className="flex items-center justify-center gap-1">
+                          <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                          <span className="text-sm font-semibold text-foreground">{member.rating}</span>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+              </motion.div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
   return (
