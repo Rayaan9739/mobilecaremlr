@@ -58,8 +58,16 @@
 }
 
 @utility font-display {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Arial, "Noto Sans", "Liberation Sans", sans-serif;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    "Noto Sans",
+    "Liberation Sans",
+    sans-serif;
 }
 
 @utility btn-gradient {
@@ -84,5 +92,5 @@
 }
 
 @utility animate-scroll {
-  animation: scroll 30s linear infinite;
+  animation: scroll 20s linear infinite;
 }
