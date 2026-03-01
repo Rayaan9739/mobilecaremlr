@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   useParams,
   useNavigate,
@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import {
   Share2,
   ChevronRight,
+  ChevronLeft,
   ArrowLeft,
   ShoppingCart,
   Percent,
@@ -68,6 +69,43 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState("");
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  // Navigation functions for images
+  const goToPreviousImage = () => {
+    setSelectedImageIndex((prev) =>
+      prev === 0 ? productImages.length - 1 : prev - 1,
+    );
+  };
+
+  const goToNextImage = () => {
+    setSelectedImageIndex((prev) =>
+      prev === productImages.length - 1 ? 0 : prev + 1,
+    );
+  };
+
+  // Touch handlers for swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const minSwipeDistance = 50;
+    if (distance > minSwipeDistance) {
+      goToNextImage();
+    } else if (distance < -minSwipeDistance) {
+      goToPreviousImage();
+    }
+  };
   const [selectedStorage, setSelectedStorage] = useState("");
 
   useEffect(() => {
@@ -139,6 +177,21 @@ export default function ProductDetail() {
         (group) =>
           group.groupId !== currentGroup.groupId &&
           String(group.brand).toLowerCase() ===
+            String(currentGroup.brand).toLowerCase(),
+      )
+      .slice(0, 4);
+  }, [currentGroup, productGroups]);
+
+  const categoryProducts = useMemo(() => {
+    if (!currentGroup) return [];
+    // Show products of the same category (excluding current product and same brand)
+    return productGroups
+      .filter(
+        (group) =>
+          group.groupId !== currentGroup.groupId &&
+          String(group.category).toLowerCase() ===
+            String(currentGroup.category).toLowerCase() &&
+          String(group.brand).toLowerCase() !==
             String(currentGroup.brand).toLowerCase(),
       )
       .slice(0, 4);
@@ -242,23 +295,27 @@ export default function ProductDetail() {
 
   const getCurrentImage = () => {
     if (!product) return fallbackProductImage;
+
+    // Use selectedImageIndex when user clicks on thumbnail
+    const selectedFromList = product.images?.[selectedImageIndex];
+    if (selectedFromList) {
+      return normalizeImage(selectedFromList);
+    }
+
+    // Fall back to activeVariant image or product default
     if (activeVariant?.image?.trim()) {
       return normalizeImage(activeVariant.image);
     }
 
-    const selectedFromList = product.images?.[selectedImageIndex];
     return normalizeImage(selectedFromList || product.image);
   };
 
   const getProductImages = () => {
     if (!product) return [];
+    // Return only product.images for thumbnails - getCurrentImage handles the display logic
     const base = (product.images || []).filter(
       (img) => (img || "").trim() !== "",
     );
-    if (activeVariant?.image?.trim()) {
-      return [activeVariant.image, ...base];
-    }
-
     return base.length > 0 ? base : [normalizeImage(product.image)];
   };
 
@@ -384,7 +441,12 @@ export default function ProductDetail() {
 
                 {/* Main Image */}
                 <div className="flex-1 relative">
-                  <div className="bg-white rounded-3xl overflow-hidden aspect-[4/5] border border-border">
+                  <div
+                    className="bg-white rounded-3xl overflow-hidden aspect-[4/5] border border-border"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                  >
                     <motion.img
                       key={selectedImageIndex}
                       initial={{ opacity: 0 }}
@@ -395,6 +457,26 @@ export default function ProductDetail() {
                       className="w-full h-full object-contain p-6"
                     />
                   </div>
+
+                  {/* Navigation Arrows */}
+                  {productImages.length > 1 && (
+                    <>
+                      <button
+                        onClick={goToPreviousImage}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow-lg border border-border flex items-center justify-center text-foreground hover:bg-white transition-all md:left-4"
+                        aria-label="Previous image"
+                      >
+                        <ChevronLeft className="w-6 h-6" />
+                      </button>
+                      <button
+                        onClick={goToNextImage}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow-lg border border-border flex items-center justify-center text-foreground hover:bg-white transition-all md:right-4"
+                        aria-label="Next image"
+                      >
+                        <ChevronRight className="w-6 h-6" />
+                      </button>
+                    </>
+                  )}
 
                   <button className="absolute top-4 right-4 w-10 h-10 rounded-full border border-border bg-white shadow-sm flex items-center justify-center text-muted-foreground hover:border-primary transition-all">
                     <Share2 className="w-5 h-5" />
@@ -716,6 +798,40 @@ export default function ProductDetail() {
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {similarProducts.map((item) => (
+                  <button
+                    key={item.groupId}
+                    type="button"
+                    onClick={() => {
+                      navigate(
+                        `/product/${String(item.category).toLowerCase() === "mobile" ? "new" : "accessory"}/${item.groupId}`,
+                      );
+                    }}
+                    className="text-left border border-border rounded-xl p-3 hover:border-primary/50 transition-colors"
+                  >
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-28 object-contain bg-white rounded-lg mb-2"
+                    />
+                    <p className="text-sm font-semibold text-foreground line-clamp-2">
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ₹{item.minPrice.toLocaleString("en-IN")}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {categoryProducts.length > 0 && (
+            <div className="mt-12">
+              <h3 className="text-xl font-bold text-foreground mb-4">
+                More from {currentGroup?.category}
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {categoryProducts.map((item) => (
                   <button
                     key={item.groupId}
                     type="button"

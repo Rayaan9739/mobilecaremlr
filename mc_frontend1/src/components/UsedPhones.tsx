@@ -1,26 +1,39 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, useInView } from "framer-motion";
 import { useProducts } from "@/contexts/ProductContext";
-import { Star } from "lucide-react";
+import { Star, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 export const UsedPhones = () => {
   const { products, incrementSales } = useProducts();
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, amount: 0.1 });
-  const [visibleCount, setVisibleCount] = useState(8);
+  const navigate = useNavigate();
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
-  // Filter only used phones by category and sort by sales count
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Filter only used phones by category or condition and sort by sales count
   const sortedUsedPhones = [...products]
     .filter(
       (product) =>
         product.category?.toUpperCase() === "USED_PHONE" ||
         product.category?.toUpperCase() === "USED-PHONE" ||
         product.category?.toUpperCase() === "USED_PHONES" ||
-        product.category?.toLowerCase() === "used phones",
+        product.category?.toLowerCase() === "used phones" ||
+        product.condition?.toLowerCase() === "used",
     )
     .sort((a, b) => (b.totalSales || 0) - (a.totalSales || 0));
 
+  // Show 3 products on mobile, 5 on desktop
+  const visibleCount = isMobile ? 3 : 5;
   const usedPhones = sortedUsedPhones.slice(0, visibleCount);
 
   return (
@@ -46,6 +59,18 @@ export const UsedPhones = () => {
           </motion.p>
         </div>
 
+        <div className="flex justify-end mb-4">
+          {sortedUsedPhones.length > visibleCount && (
+            <Button
+              type="button"
+              onClick={() => navigate("/products?category=used_phones")}
+              className="text-primary hover:text-primary/80"
+            >
+              See All <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          )}
+        </div>
+
         <div
           className={
             usedPhones.length > 0
@@ -68,14 +93,10 @@ export const UsedPhones = () => {
               >
                 <button
                   type="button"
-                  onClick={() => {
-                    incrementSales(product.id);
-                  }}
+                  onClick={() => navigate(`/used-phones/${product.id}`)}
                   className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-elevated transition-all p-2 sm:p-3 cursor-pointer border border-border/50 flex flex-col w-full h-[220px] sm:h-[240px]"
                 >
-                  <div
-                    className="flex items-center justify-center overflow-hidden relative bg-secondary/30 rounded-xl w-full h-[120px] sm:h-[130px]"
-                  >
+                  <div className="flex items-center justify-center overflow-hidden relative bg-secondary/30 rounded-xl w-full h-[120px] sm:h-[130px]">
                     {product.rating ? (
                       <div className="absolute top-2 left-2 z-30 bg-black/60 backdrop-blur-sm text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded flex items-center gap-0.5 sm:gap-1">
                         <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-yellow-400 text-yellow-400" />
@@ -83,7 +104,10 @@ export const UsedPhones = () => {
                       </div>
                     ) : null}
                     <img
-                      src={product.image || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400"}
+                      src={
+                        product.image ||
+                        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400"
+                      }
                       alt={product.name}
                       className="w-full h-full object-contain transition-all duration-200"
                       onError={(e) => {
@@ -130,11 +154,7 @@ export const UsedPhones = () => {
           <div className="mt-8 text-center">
             <Button
               type="button"
-              onClick={() =>
-                setVisibleCount((prev) =>
-                  Math.min(sortedUsedPhones.length, prev + 8),
-                )
-              }
+              onClick={() => navigate("/products?category=used_phones")}
               className="btn-gradient text-primary-foreground rounded-full px-8 py-2 text-sm"
             >
               See All

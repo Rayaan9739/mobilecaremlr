@@ -37,11 +37,23 @@ interface ProductsResponse {
 // categories that should appear in both mobiles and accessories views
 const trendingCategories = [
   { name: "Mobile Phones", category: "MOBILE", icon: Smartphone, count: 0 },
-  { name: "Used Phones", category: "USED_PHONES", icon: Smartphone, count: 0 },
+  {
+    name: "Used Phones",
+    category: "USED_PHONES",
+    icon: Smartphone,
+    count: 0,
+    excludeCategories: ["MOBILE"],
+  },
   { name: "Smart Watches", category: "SMART_WATCH", icon: Watch, count: 0 },
   { name: "Speakers", category: "SPEAKERS", icon: Speaker, count: 0 },
   { name: "Storage", category: "STORAGE", icon: HardDrive, count: 0 },
-  { name: "Accessories", category: "ACCESSORIES", icon: Package, count: 0 },
+  {
+    name: "Accessories",
+    category: "ACCESSORIES",
+    icon: Package,
+    count: 0,
+    isAccessories: true,
+  },
   {
     name: "Adaptors & Converters",
     category: "ADAPTORS_CONVERTERS",
@@ -113,6 +125,66 @@ export default function MobilesAccessories() {
   });
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  // Category counts for trending categories
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>(
+    {},
+  );
+
+  // Fetch category counts
+  useEffect(() => {
+    const fetchCategoryCounts = async () => {
+      try {
+        // First fetch all products to calculate accurate counts
+        const allProductsResponse = await api<ProductsResponse>(
+          "/products?limit=1000",
+        );
+        const allProducts = allProductsResponse.products || [];
+
+        const counts: Record<string, number> = {};
+
+        // Calculate counts from all products
+        for (const cat of trendingCategories) {
+          if (cat.isAccessories) {
+            // Accessories: exclude MOBILE and USED_PHONES categories
+            counts[cat.category] = allProducts.filter((p) => {
+              const category = p.category?.toUpperCase();
+              return (
+                category !== "MOBILE" &&
+                category !== "USED_PHONE" &&
+                category !== "USED-PHONE" &&
+                category !== "USED_PHONES" &&
+                p.condition?.toLowerCase() !== "used"
+              );
+            }).length;
+          } else if (cat.excludeCategories) {
+            // Used Phones: exclude MOBILE category
+            counts[cat.category] = allProducts.filter((p) => {
+              const category = p.category?.toUpperCase();
+              return (
+                category !== "MOBILE" &&
+                (category === "USED_PHONE" ||
+                  category === "USED-PHONE" ||
+                  category === "USED_PHONES" ||
+                  p.category?.toLowerCase() === "used phones" ||
+                  p.condition?.toLowerCase() === "used")
+              );
+            }).length;
+          } else {
+            // Regular category filtering
+            counts[cat.category] = allProducts.filter((p) => {
+              return p.category?.toUpperCase() === cat.category;
+            }).length;
+          }
+        }
+
+        setCategoryCounts(counts);
+      } catch (error) {
+        console.error("Failed to fetch category counts:", error);
+      }
+    };
+
+    fetchCategoryCounts();
+  }, []);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -147,14 +219,18 @@ export default function MobilesAccessories() {
     }
   };
 
-  const groupedProducts = useMemo(() => groupProductsByName(products), [products]);
+  const groupedProducts = useMemo(
+    () => groupProductsByName(products),
+    [products],
+  );
   const bestSellingAll = useMemo(() => groupedProducts, [groupedProducts]);
   const flagshipAll = useMemo(
     () => groupedProducts.filter((p) => p.minPrice > 50000),
     [groupedProducts],
   );
   const midRangeAll = useMemo(
-    () => groupedProducts.filter((p) => p.minPrice >= 25000 && p.minPrice <= 70000),
+    () =>
+      groupedProducts.filter((p) => p.minPrice >= 25000 && p.minPrice <= 70000),
     [groupedProducts],
   );
 
@@ -237,7 +313,9 @@ export default function MobilesAccessories() {
                     viewport={{ once: true }}
                     transition={{ delay: index * 0.05 }}
                     onClick={() =>
-                      navigate(`/category/${categoryToSlug(cat.category)}`)
+                      navigate(
+                        `/products?category=${cat.category.toLowerCase()}`,
+                      )
                     }
                     className="min-w-[140px] bg-card rounded-2xl p-6 text-center hover:shadow-elevated transition-all cursor-pointer group snap-start"
                   >
@@ -247,6 +325,12 @@ export default function MobilesAccessories() {
                     <h3 className="font-semibold text-foreground">
                       {cat.name}
                     </h3>
+                    {categoryCounts[cat.category] !== undefined &&
+                      categoryCounts[cat.category] > 0 && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {categoryCounts[cat.category]} products
+                        </p>
+                      )}
                   </motion.div>
                 ))}
               </div>
@@ -453,10 +537,7 @@ export default function MobilesAccessories() {
                   onClick={() =>
                     setVisibleCounts((prev) => ({
                       ...prev,
-                      flagship: Math.min(
-                        flagshipAll.length,
-                        prev.flagship + 8,
-                      ),
+                      flagship: Math.min(flagshipAll.length, prev.flagship + 8),
                     }))
                   }
                 >
@@ -496,10 +577,7 @@ export default function MobilesAccessories() {
                   onClick={() =>
                     setVisibleCounts((prev) => ({
                       ...prev,
-                      midRange: Math.min(
-                        midRangeAll.length,
-                        prev.midRange + 8,
-                      ),
+                      midRange: Math.min(midRangeAll.length, prev.midRange + 8),
                     }))
                   }
                 >
@@ -615,7 +693,10 @@ function ProductCard({
             )}
 
             <img
-              src={phone.image || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=500&fit=crop"}
+              src={
+                phone.image ||
+                "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=500&fit=crop"
+              }
               alt={phone.name}
               onError={(e) => {
                 e.currentTarget.src =

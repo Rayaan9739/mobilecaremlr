@@ -20,12 +20,25 @@ export function PopularProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Show 3 products on mobile, 5 on desktop
+  const visibleProducts = isMobile ? products.slice(0, 3) : products.slice(0, 5);
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
+        // Fetch all MOBILE products (not just best sellers) for the Best Sellers section
         const response = (await api(
-          "/products?isBestSeller=true&limit=50",
+          "/products?category=MOBILE&limit=50",
         )) as { products: Product[] };
         const phoneProducts = (response.products || [])
           .filter((p: Product) => p.category?.toUpperCase() === "MOBILE")
@@ -88,28 +101,27 @@ export function PopularProducts() {
               Most Popular Products
             </h2>
           </motion.div>
-          {products.length > 3 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="hidden md:block"
-          >
-            <Button
-              variant="link"
-              className="text-primary hover:text-primary/80"
-              type="button"
-              onClick={() => navigate("/best-sellers?sort=bookingCount")}
+          {products.length > (isMobile ? 3 : 5) ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
             >
-              See All <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </motion.div>
+              <Button
+                variant="link"
+                className="text-primary hover:text-primary/80"
+                type="button"
+                onClick={() => navigate("/products")}
+              >
+                See All <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </motion.div>
           ) : null}
         </div>
 
         <div className="grid grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2">
-          {products.slice(0, 3).map((product, index) => (
+          {visibleProducts.map((product, index) => (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, scale: 0.9 }}

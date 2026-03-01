@@ -69,6 +69,8 @@ function AppContent() {
         <Route path="/brand/:brandName" element={<BrandPage />} />
         <Route path="/brands/:brandName" element={<BrandPage />} />
         <Route path="/products" element={<Products />} />
+        <Route path="/used-phones" element={<Products />} />
+        <Route path="/used-phones/:id" element={<ProductDetail />} />
         <Route path="/all-products" element={<Products />} />
         <Route path="/best-sellers" element={<BestSellers />} />
         <Route path="/account" element={<AccountLayout />}>

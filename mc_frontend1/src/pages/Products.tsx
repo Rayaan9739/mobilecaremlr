@@ -36,6 +36,7 @@ interface ProductsApiResponse {
 
 const categoryTitles = {
   MOBILE: "All Phones",
+  USED_PHONES: "Used Phones",
   HEADPHONES: "Audio Products",
   SPEAKERS: "Audio Products",
   SMART_WATCH: "Smart Accessories",
@@ -125,9 +126,23 @@ export default function Products() {
   useEffect(() => {
     const isAllProductsRoute = location.pathname === "/all-products";
 
+    // Check for category in URL params (e.g., /products?category=used_phones)
+    const urlCategory = searchParams.get("category");
+
     // Set active context based on URL params
     if (isAllProductsRoute) {
       setActiveContext({ type: "all", label: "All Products" });
+      setHasManualFilters(false);
+      return;
+    }
+
+    // Set active context for category in URL params
+    if (urlCategory === "used_phones") {
+      setActiveContext({
+        type: "specialCategory",
+        label: "Used Phones",
+        value: "USED_PHONES",
+      });
       setHasManualFilters(false);
       return;
     }
@@ -187,6 +202,7 @@ export default function Products() {
     minPriceNum,
     maxPriceNum,
     location.pathname,
+    searchParams,
     setActiveContext,
     setHasManualFilters,
   ]);
@@ -195,11 +211,76 @@ export default function Products() {
   const filteredProducts = useMemo(() => {
     let baseProducts = globalProducts;
 
+    // Debug: Log first product to see available fields
+    if (baseProducts.length > 0) {
+      console.log("Sample product fields:", Object.keys(baseProducts[0]));
+      console.log("Sample product:", baseProducts[0]);
+    }
+
+    // Check if we're on the used-phones route or have category in URL
+    const urlCategory = searchParams.get("category");
+    const isUsedPhonesRoute = urlCategory === "used_phones";
+
+    // Apply URL category filtering
+    if (urlCategory && urlCategory !== "all") {
+      const normalizedCategory = urlCategory.toUpperCase();
+
+      if (isUsedPhonesRoute) {
+        // Special handling for used phones
+        baseProducts = baseProducts.filter((p) => {
+          const category = p.category?.toUpperCase();
+          return (
+            category === "USED_PHONE" ||
+            category === "USED-PHONE" ||
+            category === "USED_PHONES" ||
+            p.category?.toLowerCase() === "used phones" ||
+            p.condition?.toLowerCase() === "used"
+          );
+        });
+      } else if (normalizedCategory === "ACCESSORIES") {
+        // Accessories: exclude MOBILE and USED_PHONES
+        baseProducts = baseProducts.filter((p) => {
+          const category = p.category?.toUpperCase();
+          return (
+            category !== "MOBILE" &&
+            category !== "USED_PHONE" &&
+            category !== "USED-PHONE" &&
+            category !== "USED_PHONES" &&
+            p.condition?.toLowerCase() !== "used"
+          );
+        });
+      } else {
+        // Regular category matching
+        baseProducts = baseProducts.filter((p) => {
+          return p.category?.toUpperCase() === normalizedCategory;
+        });
+      }
+    }
+
     // Apply special category filtering if param exists
     if (specialCategory) {
       baseProducts = baseProducts.filter((p) =>
         matchesCategory(p, specialCategory),
       );
+    }
+
+    // Apply used phones route filtering
+    if (isUsedPhonesRoute) {
+      console.log(
+        "Filtering for used phones, total products:",
+        baseProducts.length,
+      );
+      baseProducts = baseProducts.filter((p) => {
+        const category = p.category?.toUpperCase();
+        return (
+          category === "USED_PHONE" ||
+          category === "USED-PHONE" ||
+          category === "USED_PHONES" ||
+          p.category?.toLowerCase() === "used phones" ||
+          p.condition?.toLowerCase() === "used"
+        );
+      });
+      console.log("Filtered used phones count:", baseProducts.length);
     }
 
     if (excludedCategories.length > 0) {
@@ -374,7 +455,10 @@ export default function Products() {
                         ) : null}
 
                         <img
-                          src={product.image || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=500&fit=crop"}
+                          src={
+                            product.image ||
+                            "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=500&fit=crop"
+                          }
                           alt={product.name}
                           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                         />
