@@ -2,25 +2,19 @@ const express = require("express");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const cloudinary = require("cloudinary").v2;
 
 const router = express.Router();
 
-// Configure local disk storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, "../../uploads");
-    // Create uploads directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, "product-" + uniqueSuffix + ext);
-  },
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+// Configure memory storage for streaming to Cloudinary
+const storage = multer.memoryStorage();
 
 // File filter to only allow images
 const fileFilter = (req, file, cb) => {
@@ -43,22 +37,37 @@ const upload = multer({
   fileFilter: fileFilter,
 });
 
-// ✅ Upload endpoint using local storage
-router.post("/upload", upload.single("image"), (req, res) => {
+// ✅ Upload endpoint using Cloudinary
+router.post("/upload", upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // Get the local file path - return full URL for frontend compatibility
-    const protocol = req.protocol;
-    const host = req.get("host");
-    const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    // Upload to Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: "mobile-care-uploads",
+          resource_type: "image",
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        },
+      );
+
+      // Convert buffer to stream
+      const stream = require("stream");
+      const bufferStream = new stream.PassThrough();
+      bufferStream.end(req.file.buffer);
+      bufferStream.pipe(uploadStream);
+    });
 
     res.json({
       success: true,
-      url: fileUrl,
-      filename: req.file.filename,
+      url: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
       size: req.file.size,
     });
   } catch (error) {
