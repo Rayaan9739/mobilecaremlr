@@ -20,16 +20,12 @@ export const UsedPhones = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Filter only used phones by category or condition and sort by sales count
+  // Filter only used phones by category with normalization
   const sortedUsedPhones = [...products]
-    .filter(
-      (product) =>
-        product.category?.toUpperCase() === "USED_PHONE" ||
-        product.category?.toUpperCase() === "USED-PHONE" ||
-        product.category?.toUpperCase() === "USED_PHONES" ||
-        product.category?.toLowerCase() === "used phones" ||
-        product.condition?.toLowerCase() === "used",
-    )
+    .filter((product) => {
+      const category = product.category?.toUpperCase().replace(/[\s-]+/g, '_');
+      return category === "USED_PHONE" || category === "USED_PHONES";
+    })
     .sort((a, b) => (b.totalSales || 0) - (a.totalSales || 0));
 
   // Show 3 products on mobile, 5 on desktop
@@ -63,7 +59,10 @@ export const UsedPhones = () => {
           {sortedUsedPhones.length > visibleCount && (
             <Button
               type="button"
-              onClick={() => navigate("/products?category=used_phones")}
+              onClick={() => {
+                console.log('👆 See All Used Phones clicked');
+                navigate("/products?category=used_phone");
+              }}
               className="text-primary hover:text-primary/80"
             >
               See All <ChevronRight className="w-4 h-4 ml-1" />
@@ -154,7 +153,10 @@ export const UsedPhones = () => {
           <div className="mt-8 text-center">
             <Button
               type="button"
-              onClick={() => navigate("/products?category=used_phones")}
+              onClick={() => {
+                console.log('👆 See All Used Phones (bottom) clicked');
+                navigate("/products?category=used_phone");
+              }}
               className="btn-gradient text-primary-foreground rounded-full px-8 py-2 text-sm"
             >
               See All

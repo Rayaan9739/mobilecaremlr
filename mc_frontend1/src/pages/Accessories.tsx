@@ -68,13 +68,12 @@ export default function Accessories() {
         );
         const allProducts = response.products || [];
 
-        // Filter out phones strictly
+        // Filter out phones strictly with normalization
         const accessoriesOnly = allProducts.filter((p: Product) => {
-          const cat = (p.category || "").toUpperCase();
+          const cat = (p.category || "").toUpperCase().replace(/[\s-]+/g, '_');
           return (
             cat !== "MOBILE" &&
             cat !== "USED_PHONE" &&
-            cat !== "USED-PHONE" &&
             cat !== "USED_PHONES"
           );
         });

@@ -159,7 +159,7 @@ export function MobilesHero() {
                 className="bg-white/10 backdrop-blur-sm border-white/30 text-white hover:bg-white/20 rounded-full px-8 shadow-lg transition-all"
                 onClick={() => {
                   clearFilters();
-                  navigate("/products?excludeCategory=MOBILE");
+                  navigate("/accessories");
                 }}
               >
                 Explore Accessories

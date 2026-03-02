@@ -39,10 +39,9 @@ const trendingCategories = [
   { name: "Mobile Phones", category: "MOBILE", icon: Smartphone, count: 0 },
   {
     name: "Used Phones",
-    category: "USED_PHONES",
+    category: "USED_PHONE",
     icon: Smartphone,
     count: 0,
-    excludeCategories: ["MOBILE"],
   },
   { name: "Smart Watches", category: "SMART_WATCH", icon: Watch, count: 0 },
   { name: "Speakers", category: "SPEAKERS", icon: Speaker, count: 0 },
@@ -145,34 +144,26 @@ export default function MobilesAccessories() {
         // Calculate counts from all products
         for (const cat of trendingCategories) {
           if (cat.isAccessories) {
-            // Accessories: exclude MOBILE and USED_PHONES categories
+            // Accessories: exclude MOBILE and USED_PHONE categories
             counts[cat.category] = allProducts.filter((p) => {
-              const category = p.category?.toUpperCase();
+              const category = p.category?.toUpperCase().replace(/[\s-]+/g, '_');
               return (
                 category !== "MOBILE" &&
                 category !== "USED_PHONE" &&
-                category !== "USED-PHONE" &&
-                category !== "USED_PHONES" &&
-                p.condition?.toLowerCase() !== "used"
+                category !== "USED_PHONES"
               );
             }).length;
-          } else if (cat.excludeCategories) {
-            // Used Phones: exclude MOBILE category
+          } else if (cat.category === 'USED_PHONE') {
+            // Used Phones: match USED_PHONE category
             counts[cat.category] = allProducts.filter((p) => {
-              const category = p.category?.toUpperCase();
-              return (
-                category !== "MOBILE" &&
-                (category === "USED_PHONE" ||
-                  category === "USED-PHONE" ||
-                  category === "USED_PHONES" ||
-                  p.category?.toLowerCase() === "used phones" ||
-                  p.condition?.toLowerCase() === "used")
-              );
+              const category = p.category?.toUpperCase().replace(/[\s-]+/g, '_');
+              return category === "USED_PHONE" || category === "USED_PHONES";
             }).length;
           } else {
-            // Regular category filtering
+            // Regular category filtering with normalization
             counts[cat.category] = allProducts.filter((p) => {
-              return p.category?.toUpperCase() === cat.category;
+              const category = p.category?.toUpperCase().replace(/[\s-]+/g, '_');
+              return category === cat.category;
             }).length;
           }
         }
@@ -312,11 +303,16 @@ export default function MobilesAccessories() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: index * 0.05 }}
-                    onClick={() =>
-                      navigate(
-                        `/products?category=${cat.category.toLowerCase()}`,
-                      )
-                    }
+                    onClick={() => {
+                      if (cat.isAccessories) {
+                        console.log('🏷️ Category clicked:', cat.name, '-> /accessories');
+                        navigate('/accessories');
+                      } else {
+                        const categoryParam = cat.category.toLowerCase();
+                        console.log('🏷️ Category clicked:', cat.name, '-> category:', categoryParam);
+                        navigate(`/products?category=${categoryParam}`);
+                      }
+                    }}
                     className="min-w-[140px] bg-card rounded-2xl p-6 text-center hover:shadow-elevated transition-all cursor-pointer group snap-start"
                   >
                     <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -325,12 +321,6 @@ export default function MobilesAccessories() {
                     <h3 className="font-semibold text-foreground">
                       {cat.name}
                     </h3>
-                    {categoryCounts[cat.category] !== undefined &&
-                      categoryCounts[cat.category] > 0 && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {categoryCounts[cat.category]} products
-                        </p>
-                      )}
                   </motion.div>
                 ))}
               </div>

@@ -46,7 +46,7 @@ export function ServicesPromo(props: ServicesPromoProps) {
             <div className="relative mx-auto lg:mx-0 max-w-sm sm:max-w-md">
               <div className="absolute -top-4 -left-4 w-full h-full bg-primary/10 rounded-3xl" />
               <img
-                src="https://images.unsplash.com/photo-1621905252507-b35492cc74b4?q=80&w=600"
+                src="/about.png"
                 alt="Phone Repair"
                 className="relative rounded-3xl shadow-elevated w-full h-auto object-cover"
               />
@@ -58,7 +58,7 @@ export function ServicesPromo(props: ServicesPromoProps) {
                 className="absolute -bottom-6 -right-2 sm:-right-6 w-32 h-32 sm:w-48 sm:h-48"
               >
                 <img
-                  src="https://images.unsplash.com/photo-1580910051074-3eb694886f8b?q=80&w=300"
+                  src="/hero.jpg"
                   alt="Technician"
                   className="w-full h-full object-cover rounded-3xl shadow-elevated border-4 border-card"
                 />
