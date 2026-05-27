@@ -1,5 +1,6 @@
 const prisma = require("../utils/prisma");
 const { Pool } = require("pg");
+const crypto = require("crypto");
 
 const normalizeCategoryCode = (value) => {
   if (!value) return "";
@@ -47,6 +48,36 @@ const normalizeJsonArray = (value) => {
   // Allow a single object to be passed
   if (typeof value === "object") return [value];
   return [];
+};
+
+const normalizeColors = (value, fallback = []) => {
+  const parsed = parseJSON(value);
+  if (Array.isArray(parsed)) return parsed;
+  if (Array.isArray(value)) return value;
+  return Array.isArray(fallback) ? fallback : [];
+};
+
+const getProductColors = (product) => {
+  const colors = normalizeColors(product.colors);
+  if (colors.length > 0) return colors;
+  return normalizeColors(product.colorVariants);
+};
+
+const normalizeProductResponse = (product) => {
+  if (!product) return product;
+  const colors = getProductColors(product);
+  return {
+    ...product,
+    colors,
+    colorVariants: Array.isArray(product.colorVariants)
+      ? product.colorVariants
+      : colors,
+    reviewCount:
+      product.reviewCount ?? product.reviewsCount ?? product.ratingsCount ?? null,
+    reviewsCount:
+      product.reviewsCount ?? product.reviewCount ?? product.ratingsCount ?? null,
+    isNewArrival: product.isNewArrival ?? product.isNew ?? false,
+  };
 };
 
 // Helper to convert empty strings to null
@@ -148,14 +179,25 @@ async function createProductWithPg(data) {
       values.push(value);
     };
 
+    // Ensure id is generated if the table does not supply a default value
+    if (hasColumn(columnInfo, "id")) {
+      add("id", data.id || crypto.randomUUID());
+    }
+
     add("name", data.name);
     add("description", data.description);
     add("brand", data.brand);
     add("price", data.price);
     add("originalPrice", data.originalPrice);
     add("discount", data.discount);
+    add("rating", data.rating);
+    add("ratingsCount", data.ratingsCount);
+    add("reviewsCount", data.reviewsCount);
+    add("reviewCount", data.reviewCount);
     add("stock", data.stock);
     add("category", data.category);
+    add("createdAt", data.createdAt || new Date());
+    add("updatedAt", data.updatedAt || new Date());
 
     if (hasColumn(columnInfo, "specs")) {
       if (isJsonbColumn(columnInfo, "specs")) {
@@ -192,6 +234,26 @@ async function createProductWithPg(data) {
       }
     }
 
+    add("familyId", data.familyId);
+    add("baseProductId", data.baseProductId);
+    add("colorName", data.colorName);
+    add("colorHex", data.colorHex);
+    add("storageOption", data.storageOption);
+
+    if (hasColumn(columnInfo, "colors")) {
+      if (isJsonbColumn(columnInfo, "colors")) {
+        add("colors", JSON.stringify(data.colors ?? []), "::jsonb");
+      } else if (isJsonbArrayColumn(columnInfo, "colors")) {
+        add(
+          "colors",
+          Array.isArray(data.colors) ? data.colors.map((v) => JSON.stringify(v)) : [],
+          "::jsonb[]",
+        );
+      } else {
+        add("colors", data.colors);
+      }
+    }
+
     if (hasColumn(columnInfo, "images")) {
       // Support both text[] and jsonb schemas
       if (isTextArrayColumn(columnInfo, "images")) {
@@ -204,6 +266,8 @@ async function createProductWithPg(data) {
     add("isBestSeller", data.isBestSeller);
     add("isFeatured", data.isFeatured);
     add("isNew", data.isNew);
+    add("isNewArrival", data.isNewArrival);
+    add("isWeeklyTrending", data.isWeeklyTrending);
 
     const quotedColumns = columns.map((c) =>
       /^[a-z_][a-z0-9_]*$/.test(c) ? c : `"${c}"`,
@@ -223,6 +287,124 @@ async function createProductWithPg(data) {
   }
 }
 
+async function updateProductWithPg(id, data) {
+  const columnInfo = await getProductsColumnInfo();
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: false,
+  });
+  const client = await pool.connect();
+
+  try {
+    const setters = [];
+    const values = [];
+
+    const add = (columnName, value, cast = "") => {
+      if (!hasColumn(columnInfo, columnName)) return;
+      const quotedColumn = /^[a-z_][a-z0-9_]*$/.test(columnName)
+        ? columnName
+        : `"${columnName}"`;
+      values.push(value);
+      setters.push(`${quotedColumn} = $${values.length}${cast}`);
+    };
+
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === "highlights") {
+        if (isJsonbArrayColumn(columnInfo, key)) {
+          add(key, [JSON.stringify(value)], "::jsonb[]");
+        } else if (isTextArrayColumn(columnInfo, key)) {
+          add(
+            key,
+            Array.isArray(value)
+              ? value.map((item) => String(item)).filter(Boolean)
+              : [JSON.stringify(value)],
+          );
+        } else if (isJsonbColumn(columnInfo, key)) {
+          add(key, JSON.stringify(value), "::jsonb");
+        } else {
+          add(key, value);
+        }
+        return;
+      }
+
+      if (key === "colorVariants") {
+        if (isJsonbArrayColumn(columnInfo, key)) {
+          add(
+            key,
+            Array.isArray(value) ? value.map((item) => JSON.stringify(item)) : [],
+            "::jsonb[]",
+          );
+        } else if (isJsonbColumn(columnInfo, key)) {
+          add(key, JSON.stringify(value), "::jsonb");
+        } else {
+          add(key, value);
+        }
+        return;
+      }
+
+      if (key === "colors") {
+        if (isJsonbColumn(columnInfo, key)) {
+          add(key, JSON.stringify(value ?? []), "::jsonb");
+        } else if (isJsonbArrayColumn(columnInfo, key)) {
+          add(
+            key,
+            Array.isArray(value) ? value.map((item) => JSON.stringify(item)) : [],
+            "::jsonb[]",
+          );
+        } else {
+          add(key, value);
+        }
+        return;
+      }
+
+      if (key === "images") {
+        if (isTextArrayColumn(columnInfo, key)) {
+          add(key, value);
+        } else if (isJsonbColumn(columnInfo, key)) {
+          add(key, JSON.stringify(value), "::jsonb");
+        } else {
+          add(key, value);
+        }
+        return;
+      }
+
+      if (key === "specs") {
+        if (isJsonbColumn(columnInfo, key)) {
+          add(key, JSON.stringify(value), "::jsonb");
+        } else {
+          add(key, value);
+        }
+        return;
+      }
+
+      add(key, value);
+    });
+
+    if (setters.length === 0) {
+      const result = await client.query("SELECT * FROM products WHERE id = $1", [
+        id,
+      ]);
+      return result.rows[0];
+    }
+
+    values.push(id);
+    const result = await client.query(
+      `
+        UPDATE products
+        SET ${setters.join(", ")}
+        WHERE id = $${values.length}
+        RETURNING *
+      `,
+      values,
+    );
+
+    return result.rows[0];
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
 // Simple fallback for products - return empty array on error
 const getProducts = async (req, res) => {
   try {
@@ -235,6 +417,7 @@ const getProducts = async (req, res) => {
       isBestSeller,
       isFeatured,
       isNew,
+      isWeeklyTrending,
       sortBy,
     } = req.query;
 
@@ -269,6 +452,12 @@ const getProducts = async (req, res) => {
       if (isNew === "true") {
         sql += ` AND "isNew" = true`;
       }
+      if (isWeeklyTrending === "true") {
+        const columnInfo = await getProductsColumnInfo();
+        sql += hasColumn(columnInfo, "isWeeklyTrending")
+          ? ` AND "isWeeklyTrending" = true AND stock > 0`
+          : ` AND false`;
+      }
       if (search) {
         sql += ` AND (LOWER(name) LIKE LOWER($${values.length + 1}) OR LOWER(description) LIKE LOWER($${values.length + 1}))`;
         values.push(`%${search}%`);
@@ -289,10 +478,14 @@ const getProducts = async (req, res) => {
       
       const result = await client.query(sql, values);
       
-      const productsWithImage = result.rows.map((p) => ({
-        ...p,
-        image: p.images && p.images.length > 0 ? p.images[0] : "",
-      }));
+      const productsWithImage = result.rows.map((p) => {
+        const normalized = normalizeProductResponse(p);
+        return {
+          ...normalized,
+          isWeeklyTrending: normalized.isWeeklyTrending ?? false,
+          image: normalized.images && normalized.images.length > 0 ? normalized.images[0] : "",
+        };
+      });
       
       res.json({
         products: productsWithImage,
@@ -342,9 +535,10 @@ const getProduct = async (req, res) => {
         return res.status(404).json({ error: "Product not found" });
       }
       
-      const product = result.rows[0];
+      const product = normalizeProductResponse(result.rows[0]);
       const productWithImage = {
         ...product,
+        isWeeklyTrending: product.isWeeklyTrending ?? false,
         image: product.images && product.images.length > 0 ? product.images[0] : "",
       };
       
@@ -356,6 +550,52 @@ const getProduct = async (req, res) => {
   } catch (error) {
     console.error("getProduct error:", error);
     res.status(500).json({ error: "Product not found" });
+  }
+};
+
+const getFamilyProducts = async (req, res) => {
+  try {
+    const { familyId } = req.params;
+
+    if (!familyId) {
+      return res.json({ variants: [] });
+    }
+
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: false,
+    });
+
+    const client = await pool.connect();
+
+    try {
+      const result = await client.query(
+        `
+          SELECT
+            id,
+            COALESCE(colorName, '') AS color,
+            COALESCE(storageOption, '') AS storage
+          FROM products
+          WHERE familyId = $1
+          ORDER BY color, storage, name
+        `,
+        [familyId],
+      );
+
+      res.json({
+        variants: result.rows.map((row) => ({
+          id: row.id,
+          color: row.color || "",
+          storage: row.storage || "",
+        })),
+      });
+    } finally {
+      client.release();
+      await pool.end();
+    }
+  } catch (error) {
+    console.error("getFamilyProducts error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -403,6 +643,22 @@ const createProduct = async (req, res) => {
       discount: body.discount
         ? toNumber(body.discount)
         : null,
+      rating: body.rating
+        ? toNumber(body.rating)
+        : null,
+      ratingsCount: body.ratingsCount
+        ? toNumber(body.ratingsCount)
+        : null,
+      reviewsCount: body.reviewsCount
+        ? toNumber(body.reviewsCount)
+        : null,
+      reviewCount: body.reviewCount
+        ? toNumber(body.reviewCount)
+        : body.reviewsCount
+          ? toNumber(body.reviewsCount)
+          : body.ratingsCount
+            ? toNumber(body.ratingsCount)
+            : null,
 
       stock: toNumber(body.stock, 0),
 
@@ -412,18 +668,34 @@ const createProduct = async (req, res) => {
 
       highlights: parseJSON(body.highlights, {}),
 
-      colorVariants: parseJSON(body.colorVariants, []),
+      colors: normalizeColors(body.colors, parseJSON(body.colorVariants, [])),
+
+      colorVariants: normalizeColors(body.colorVariants, parseJSON(body.colors, [])),
 
       images: Array.isArray(body.images)
         ? body.images
         : [],
 
+      familyId: body.familyId || null,
+      baseProductId: body.baseProductId || null,
+      colorName: body.colorName || null,
+      colorHex: body.colorHex || null,
+      storageOption: body.storageOption || null,
+
       isBestSeller: !!body.isBestSeller,
       isFeatured: !!body.isFeatured,
-      isNew: !!body.isNew,
+      isNew: !!(body.isNew || body.isNewArrival),
+      isNewArrival: !!(body.isNewArrival || body.isNew),
+      isWeeklyTrending: !!body.isWeeklyTrending,
+
+      // Variant tracking fields
+      baseProductId: body.baseProductId || null,
+      colorName: body.colorName || null,
+      colorHex: body.colorHex || null,
+      storageOption: body.storageOption || null,
     }
 
-    const product = await prisma.product.create({ data })
+    const product = await createProductWithPg(data)
 
     return res.status(201).json(product)
   } catch (error) {
@@ -445,15 +717,22 @@ const updateProduct = async (req, res) => {
       price,
       originalPrice,
       discount,
+      rating,
+      ratingsCount,
+      reviewsCount,
+      reviewCount,
       stock,
       category,
       brand,
       specs,
       highlights,
+      colors,
       colorVariants,
       isBestSeller,
       isFeatured,
       isNew,
+      isNewArrival,
+      isWeeklyTrending,
       images,
     } = req.body;
 
@@ -503,6 +782,52 @@ const updateProduct = async (req, res) => {
       }
       updateData.discount = parsedDiscount;
     }
+    if (rating !== undefined) {
+      const parsedRating = parseOptionalFloat(rating);
+      if (
+        Number.isNaN(parsedRating) ||
+        (parsedRating !== null && (parsedRating < 0 || parsedRating > 5))
+      ) {
+        return res.status(400).json({ error: "Rating must be between 0 and 5" });
+      }
+      updateData.rating = parsedRating;
+    }
+    if (ratingsCount !== undefined) {
+      const parsedRatingsCount = parseOptionalInt(ratingsCount);
+      if (
+        Number.isNaN(parsedRatingsCount) ||
+        (parsedRatingsCount !== null && parsedRatingsCount < 0)
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Reviews count must be a non-negative integer" });
+      }
+      updateData.ratingsCount = parsedRatingsCount;
+    }
+    if (reviewsCount !== undefined) {
+      const parsedReviewsCount = parseOptionalInt(reviewsCount);
+      if (
+        Number.isNaN(parsedReviewsCount) ||
+        (parsedReviewsCount !== null && parsedReviewsCount < 0)
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Reviews count must be a non-negative integer" });
+      }
+      updateData.reviewsCount = parsedReviewsCount;
+    }
+    if (reviewCount !== undefined) {
+      const parsedReviewCount = parseOptionalInt(reviewCount);
+      if (
+        Number.isNaN(parsedReviewCount) ||
+        (parsedReviewCount !== null && parsedReviewCount < 0)
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Review count must be a non-negative integer" });
+      }
+      updateData.reviewCount = parsedReviewCount;
+    }
     if (stock !== undefined) {
       const parsedStock = parseOptionalInt(stock);
       if (
@@ -551,18 +876,20 @@ const updateProduct = async (req, res) => {
         updateData.highlights = {};
       }
     }
-    if (colorVariants !== undefined) updateData.colorVariants = colorVariants;
+    if (colors !== undefined) updateData.colors = normalizeColors(colors);
+    if (colorVariants !== undefined) updateData.colorVariants = normalizeColors(colorVariants);
     if (images !== undefined) updateData.images = images;
     if (isBestSeller !== undefined)
       updateData.isBestSeller = parseBoolean(isBestSeller);
     if (isFeatured !== undefined)
       updateData.isFeatured = parseBoolean(isFeatured);
     if (isNew !== undefined) updateData.isNew = parseBoolean(isNew);
+    if (isNewArrival !== undefined)
+      updateData.isNewArrival = parseBoolean(isNewArrival);
+    if (isWeeklyTrending !== undefined)
+      updateData.isWeeklyTrending = parseBoolean(isWeeklyTrending);
 
-    const product = await prisma.product.update({
-      where: { id: req.params.id },
-      data: updateData,
-    });
+    const product = await updateProductWithPg(req.params.id, updateData);
 
     res.json({
       message: "Product updated successfully",
@@ -606,6 +933,7 @@ const deleteProduct = async (req, res) => {
 module.exports = {
   getProducts,
   getProduct,
+  getFamilyProducts,
   getCategories,
   createProduct,
   updateProduct,

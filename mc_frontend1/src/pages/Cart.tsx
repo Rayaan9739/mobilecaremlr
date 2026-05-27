@@ -33,6 +33,7 @@ interface Address {
 
 interface CartProduct {
   id: string | number;
+  productId?: string | number;
   name: string;
   price: number;
   image?: string;
@@ -155,7 +156,7 @@ export default function Cart() {
     try {
       // Prepare order items
       const items = cart.map(({ product, quantity }) => ({
-        productId: String(product.id),
+        productId: String(product.productId || product.id),
         quantity,
         variantId: product.variantId || String(product.id),
         color: product.selectedColor,

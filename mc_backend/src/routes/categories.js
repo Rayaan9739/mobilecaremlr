@@ -117,4 +117,38 @@ router.post("/", adminAuth, async (req, res) => {
   }
 });
 
+router.put("/:id", adminAuth, async (req, res) => {
+  try {
+    const { name, displayName } = req.body;
+    const rawDisplayName = String(displayName || name || "").trim();
+    if (!rawDisplayName) {
+      return res.status(400).json({ error: "Category name is required" });
+    }
+
+    const normalizedName = normalizeCategoryCode(name || rawDisplayName);
+    const category = await prisma.category.update({
+      where: { id: req.params.id },
+      data: {
+        name: normalizedName,
+        displayName: String(displayName || buildDisplayName(rawDisplayName)),
+      },
+    });
+
+    res.json(category);
+  } catch (error) {
+    console.error("Update category error:", error);
+    res.status(500).json({ error: error.message || "Failed to update category" });
+  }
+});
+
+router.delete("/:id", adminAuth, async (req, res) => {
+  try {
+    await prisma.category.delete({ where: { id: req.params.id } });
+    res.json({ message: "Category deleted successfully" });
+  } catch (error) {
+    console.error("Delete category error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete category" });
+  }
+});
+
 module.exports = router;

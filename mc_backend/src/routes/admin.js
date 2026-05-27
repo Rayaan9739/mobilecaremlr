@@ -28,14 +28,21 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
       name,
       description,
       price,
+      rating,
+      ratingsCount,
+      reviewsCount,
+      reviewCount,
       stock,
       category,
       brand,
       highlights,
+      colors,
       colorVariants,
       isBestSeller,
       isFeatured,
       isNew,
+      isNewArrival,
+      isWeeklyTrending,
     } = req.body;
 
     // Validate required fields
@@ -75,14 +82,27 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
         description,
         brand: brand || "",
         price: parsedPrice,
+        rating: rating ? parseFloat(rating) : null,
+        ratingsCount: ratingsCount ? parseInt(ratingsCount) : null,
+        reviewsCount: reviewsCount ? parseInt(reviewsCount) : null,
+        reviewCount: reviewCount
+          ? parseInt(reviewCount)
+          : reviewsCount
+            ? parseInt(reviewsCount)
+            : ratingsCount
+              ? parseInt(ratingsCount)
+              : null,
         stock: parseInt(stock),
         category: isUsedPhone ? "used-phone" : normalizedCategory,
         highlights: highlights !== undefined ? highlights : {},
-        colorVariants: colorVariants || [],
+        colors: colors || colorVariants || [],
+        colorVariants: colorVariants || colors || [],
         images,
         isBestSeller: Boolean(isBestSeller),
         isFeatured: Boolean(isFeatured),
-        isNew: Boolean(isNew),
+        isNew: Boolean(isNew || isNewArrival),
+        isNewArrival: Boolean(isNewArrival || isNew),
+        isWeeklyTrending: Boolean(isWeeklyTrending),
       },
     });
 
@@ -103,14 +123,21 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
       name,
       description,
       price,
+      rating,
+      ratingsCount,
+      reviewsCount,
+      reviewCount,
       stock,
       category,
       brand,
       highlights,
+      colors,
       colorVariants,
       isBestSeller,
       isFeatured,
       isNew,
+      isNewArrival,
+      isWeeklyTrending,
     } = req.body;
 
     // Validate required fields
@@ -165,14 +192,27 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
         description,
         brand: brand || "",
         price: price !== undefined ? parseFloat(price) : undefined,
+        rating: rating ? parseFloat(rating) : null,
+        ratingsCount: ratingsCount ? parseInt(ratingsCount) : null,
+        reviewsCount: reviewsCount ? parseInt(reviewsCount) : null,
+        reviewCount: reviewCount
+          ? parseInt(reviewCount)
+          : reviewsCount
+            ? parseInt(reviewsCount)
+            : ratingsCount
+              ? parseInt(ratingsCount)
+              : null,
         stock: parseInt(stock),
         category: isUsedPhone ? "used-phone" : normalizedCategory, // Exact category value
         highlights: highlights !== undefined ? highlights : {},
-        colorVariants: colorVariants || [],
+        colors: colors || colorVariants || [],
+        colorVariants: colorVariants || colors || [],
         images,
         isBestSeller: Boolean(isBestSeller),
         isFeatured: Boolean(isFeatured),
-        isNew: Boolean(isNew),
+        isNew: Boolean(isNew || isNewArrival),
+        isNewArrival: Boolean(isNewArrival || isNew),
+        isWeeklyTrending: Boolean(isWeeklyTrending),
       },
     });
 
@@ -309,6 +349,88 @@ router.patch("/orders/:id/status", async (req, res) => {
 });
 
 // DASHBOARD STATS
+
+// CUSTOMER MANAGEMENT
+router.get("/customers", async (req, res) => {
+  try {
+    const { search = "", page = 1, limit = 20 } = req.query;
+    const searchText = String(search || "").trim();
+    const where = {
+      role: "USER",
+      ...(searchText
+        ? {
+            OR: [
+              { fullName: { contains: searchText, mode: "insensitive" } },
+              { email: { contains: searchText, mode: "insensitive" } },
+              { phone: { contains: searchText, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
+    const users = await prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true,
+        createdAt: true,
+        orders: { select: { id: true, total: true, status: true } },
+      },
+      skip: (parseInt(page, 10) - 1) * parseInt(limit, 10),
+      take: parseInt(limit, 10),
+      orderBy: { createdAt: "desc" },
+    });
+
+    const total = await prisma.user.count({ where });
+    const customers = users.map((user) => ({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      ordersCount: user.orders.length,
+      totalPurchaseAmount: user.orders.reduce(
+        (sum, order) => sum + Number(order.total || 0),
+        0,
+      ),
+      disabled: false,
+      createdAt: user.createdAt,
+    }));
+
+    res.json({
+      customers,
+      pagination: {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Get customers error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.patch("/customers/:id/disable", async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, fullName: true, email: true, phone: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
+
+    res.json({ message: "Customer disable recorded", customer: user });
+  } catch (error) {
+    console.error("Disable customer error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 router.get("/dashboard/stats", async (req, res) => {
   try {

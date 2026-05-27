@@ -1,10 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import {
-  useParams,
-  useNavigate,
-  Link,
-  useSearchParams,
-} from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Share2,
@@ -33,13 +28,17 @@ import api from "@/lib/api";
 import { useLocation } from "react-router-dom";
 import { useRepairBooking } from "@/contexts/RepairBookingContext";
 import { useProducts } from "@/contexts/ProductContext";
-import { groupProductsByName, pickVariant } from "@/utils/productVariants";
+import {
+  groupProductsByName,
+  type ProductVariant,
+} from "@/utils/productVariants";
 import { useAuth } from "@/contexts/AuthContext";
 import { isValidPhoneNumber, toNormalizedPhoneNumber } from "@/lib/phone";
 import { toast } from "sonner";
 
 interface Product {
   id: string;
+  familyId?: string;
   name: string;
   brand: string;
   price: number;
@@ -51,27 +50,68 @@ interface Product {
   images: string[];
   category: string;
   highlights: string[] | Record<string, string>;
-  colorVariants: { name: string; hex: string; image: string }[];
+  colors?: {
+    name: string;
+    hex?: string;
+    dotImage?: string;
+    image?: string;
+    images?: string[];
+    storageVariants?: {
+      storage: string;
+      originalPrice?: number;
+      sellingPrice?: number;
+      price?: number;
+      discount?: number;
+      inStock?: boolean;
+      stock?: boolean | number;
+    }[];
+  }[];
+  colorVariants: {
+    name: string;
+    hex?: string;
+    dotImage?: string;
+    image?: string;
+    images?: string[];
+    storageVariants?: {
+      storage: string;
+      originalPrice?: number;
+      sellingPrice?: number;
+      price?: number;
+      discount?: number;
+      inStock?: boolean;
+      stock?: boolean | number;
+    }[];
+  }[];
   stock: number;
   description?: string;
+  colorName?: string;
+  colorHex?: string;
+  storageOption?: string;
 }
 
 export default function ProductDetail() {
   const { type, id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { addToCart } = useCart();
   const { addOrderNotification } = useRepairBooking();
   const { user } = useAuth();
   const { products: allProducts } = useProducts();
   const [product, setProduct] = useState<Product | null>(null);
+  // The active variant id (may differ from route `id` when we swap variants
+  // locally without navigation).
+  const [activeVariantId, setActiveVariantId] = useState<string | null>(id ?? null);
+  const [familyVariants, setFamilyVariants] = useState<
+    { id: string; variantId?: string; color: string; storage: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [selectedColor, setSelectedColor] = useState("");
-  const imageContainerRef = useRef<HTMLDivElement>(null);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const skipNextFetchRef = useRef(false);
+
+  const getVariantId = (variant?: { id?: string; variantId?: string } | null) =>
+    variant?.id || variant?.variantId || "";
 
   // Navigation functions for images
   const goToPreviousImage = () => {
@@ -106,26 +146,55 @@ export default function ProductDetail() {
       goToPreviousImage();
     }
   };
-  const [selectedStorage, setSelectedStorage] = useState("");
-
   useEffect(() => {
     const fetchProduct = async () => {
+      // If a variant swap just updated local state and URL silently,
+      // skip the next fetch to avoid overwriting the local product.
+      if (skipNextFetchRef.current) {
+        skipNextFetchRef.current = false;
+        return;
+      }
+
       try {
         setLoading(true);
         const response = (await api(`/products/${id}`)) as { product: Product };
         setProduct(response.product);
       } catch (err) {
         console.error("Failed to fetch product:", err);
-        setProduct(null);
+        // Do not clear `product` on fetch error to avoid unmounting the page
+        // and causing a flash. Keep previous product data if present.
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) {
-      fetchProduct();
-    }
-  }, [id]);
+    if (!id) return;
+    if (product?.id === id) return;
+
+    fetchProduct();
+    setSelectedImageIndex(0);
+  }, [id, product]);
+
+  useEffect(() => {
+    const fetchFamilyVariants = async () => {
+      if (!product?.familyId) {
+        setFamilyVariants([]);
+        return;
+      }
+
+      try {
+        const response = (await api(`/products/family/${product.familyId}`)) as {
+          variants: { id: string; variantId?: string; color: string; storage: string }[];
+        };
+        setFamilyVariants(response.variants || []);
+      } catch (err) {
+        console.error("Failed to fetch family variants:", err);
+        setFamilyVariants([]);
+      }
+    };
+
+    fetchFamilyVariants();
+  }, [product?.familyId]);
 
   const productGroups = useMemo(
     () => groupProductsByName(allProducts),
@@ -133,41 +202,150 @@ export default function ProductDetail() {
   );
 
   const currentGroup = useMemo(() => {
-    if (!id) return null;
+    if (!product) return null;
+
     const fromGlobal = productGroups.find(
       (group) =>
-        group.groupId === id ||
-        group.variants.some((variant) => variant.variantId === id),
+        group.groupId === product.id ||
+        group.variants.some((variant) => variant.variantId === product.id),
     );
     if (fromGlobal) return fromGlobal;
-    if (product) {
-      const grouped = groupProductsByName([product as any]);
-      return grouped[0] || null;
-    }
-    return null;
-  }, [id, productGroups, product]);
 
-  const activeVariant = useMemo(() => {
+    const grouped = groupProductsByName([product as any]);
+    return grouped[0] || null;
+  }, [product, productGroups]);
+
+  const currentVariant = useMemo(() => {
     if (!currentGroup) return null;
-    return pickVariant(currentGroup, selectedColor, selectedStorage);
-  }, [currentGroup, selectedColor, selectedStorage]);
+
+    const exactMatch = currentGroup.variants.find(
+      (variant) => variant.variantId === activeVariantId || variant.variantId === product?.id,
+    );
+    if (exactMatch) return exactMatch;
+
+    const preferredColor =
+      product?.colorName?.trim() ||
+      product?.colors?.[0]?.name?.trim() ||
+      product?.colorVariants?.[0]?.name?.trim();
+    const preferredStorage = product?.storageOption?.trim();
+
+    return (
+      currentGroup.variants.find(
+        (variant) =>
+          variant.color === preferredColor && variant.storage === preferredStorage,
+      ) ||
+      currentGroup.variants[0] ||
+      null
+    );
+  }, [currentGroup, product, activeVariantId]);
+
+  const currentColor = useMemo(() => {
+    return (
+      currentVariant?.color ||
+      product?.colorName?.trim() ||
+      product?.colors?.[0]?.name?.trim() ||
+      product?.colorVariants?.[0]?.name?.trim() ||
+      currentGroup?.colorOptions[0]?.name ||
+      ""
+    );
+  }, [currentVariant, product, currentGroup]);
+
+  const currentStorage = useMemo(() => {
+    return (
+      currentVariant?.storage ||
+      product?.storageOption?.trim() ||
+      currentGroup?.storageOptions[0] ||
+      ""
+    );
+  }, [currentVariant, product, currentGroup]);
+
+  const hasExactVariant = (color: string, storage: string) =>
+    familyVariants.some(
+      (variant) => variant.color === color && variant.storage === storage,
+    ) ||
+    Boolean(
+      currentGroup?.variants.find(
+        (variant) => variant.color === color && variant.storage === storage,
+      ),
+    );
+
+  const findVariantForColor = (color: string) => {
+    return (
+      familyVariants.find(
+        (variant) => variant.color === color && variant.storage === currentStorage,
+      ) ||
+      familyVariants.find((variant) => variant.color === color) ||
+      currentGroup?.variants.find(
+        (variant) => variant.color === color && variant.storage === currentStorage,
+      ) ||
+      currentGroup?.variants.find((variant) => variant.color === color) ||
+      null
+    );
+  };
+
+  const findVariantForStorage = (storage: string) => {
+    return (
+      familyVariants.find(
+        (variant) => variant.color === currentColor && variant.storage === storage,
+      ) ||
+      currentGroup?.variants.find(
+        (variant) => variant.color === currentColor && variant.storage === storage,
+      ) ||
+      null
+    );
+  };
 
   const availableStorages = useMemo(() => {
+    const fromFamily = familyVariants
+      .filter((variant) => !currentColor || variant.color === currentColor)
+      .map((variant) => variant.storage)
+      .filter(Boolean);
+
+    if (fromFamily.length > 0) {
+      return Array.from(new Set(fromFamily));
+    }
+
     if (!currentGroup) return [];
+
     return Array.from(
-      new Set(currentGroup.variants.map((variant) => variant.storage)),
+      new Set(
+        currentGroup.variants
+          .filter((variant) => !currentColor || variant.color === currentColor)
+          .map((variant) => variant.storage)
+          .filter(Boolean),
+      ),
     );
-  }, [currentGroup]);
+  }, [currentGroup, currentColor, familyVariants]);
 
   const availableColors = useMemo(() => {
     if (!currentGroup) return [];
-    const scoped = selectedStorage
-      ? currentGroup.variants.filter(
-          (variant) => variant.storage === selectedStorage,
-        )
-      : currentGroup.variants;
-    return Array.from(new Set(scoped.map((variant) => variant.color)));
-  }, [currentGroup, selectedStorage]);
+
+    const sourceVariants = familyVariants.length > 0 ? familyVariants : currentGroup.variants;
+    const filtered = sourceVariants.map((variant) => {
+      if ("color" in variant) {
+        const matchedColor = currentGroup.colorOptions.find(
+          (option) => option.name === variant.color,
+        );
+        return {
+          name: variant.color,
+          hex: matchedColor?.hex,
+          dotImage: matchedColor?.dotImage,
+        };
+      }
+
+      return {
+        name: variant.color,
+        hex: variant.colorHex,
+        dotImage: variant.dotImage,
+      };
+    });
+
+    const unique = Array.from(
+      new Map(filtered.map((color) => [color.name, color])).values(),
+    );
+
+    return unique.length > 0 ? unique : currentGroup.colorOptions;
+  }, [currentGroup, familyVariants]);
 
   const similarProducts = useMemo(() => {
     if (!currentGroup) return [];
@@ -197,54 +375,39 @@ export default function ProductDetail() {
       .slice(0, 4);
   }, [currentGroup, productGroups]);
 
-  useEffect(() => {
-    if (availableStorages.length === 0) return;
-    if (!availableStorages.includes(selectedStorage)) {
-      setSelectedStorage(availableStorages[0]);
-    }
-  }, [availableStorages, selectedStorage]);
+  const swapVariant = (nextVariant: ProductVariant | null) => {
+    if (!nextVariant || !nextVariant.product) return;
 
-  useEffect(() => {
-    if (availableColors.length === 0) return;
-    if (!availableColors.includes(selectedColor)) {
-      setSelectedColor(availableColors[0]);
-    }
-  }, [availableColors, selectedColor]);
+    console.log("swapVariant", {
+      currentProductId: product?.id,
+      currentProductName: product?.name,
+      nextVariantId: nextVariant.variantId,
+      nextVariantStorage: nextVariant.storage,
+      nextVariantColor: nextVariant.color,
+      nextVariantProductName: nextVariant.product?.name,
+      nextVariantPrice: nextVariant.price,
+    });
 
-  useEffect(() => {
-    if (!currentGroup || currentGroup.variants.length === 0) return;
-    const queryColor = searchParams.get("color") || "";
-    const queryStorage = searchParams.get("storage") || "";
-    const initialVariant =
-      pickVariant(currentGroup, queryColor, queryStorage) ||
-      currentGroup.variants[0];
-    setSelectedColor(initialVariant.color);
-    setSelectedStorage(initialVariant.storage);
+    const nextUrl = `/product/${type || (nextVariant.product.category === "MOBILE" ? "new" : "accessory")}/${nextVariant.variantId}`;
+    const currentUrl = window.location.pathname;
+
+    // Merge next product into previous state so we never render `undefined` or
+    // temporarily clear fields. Preserve UI until new data is applied.
+    setProduct((prev) => (prev ? { ...prev, ...nextVariant.product } : nextVariant.product));
     setSelectedImageIndex(0);
-  }, [currentGroup, searchParams]);
 
-  useEffect(() => {
-    if (!selectedColor && !selectedStorage) return;
-    const next = new URLSearchParams(searchParams);
-    if (selectedColor) next.set("color", selectedColor);
-    if (selectedStorage) next.set("storage", selectedStorage);
-    if (next.toString() !== searchParams.toString()) {
-      setSearchParams(next, { replace: true });
-    }
-  }, [selectedColor, selectedStorage, searchParams, setSearchParams]);
+    // Mark to skip the immediate fetch triggered by the route effect so our
+    // local update is not overwritten.
+    skipNextFetchRef.current = true;
+    setActiveVariantId(nextVariant.variantId || null);
 
-  const handleAddToCart = () => {
-    if (product && activeVariant) {
-      addToCart({
-        id: activeVariant.variantId,
-        name: product.name,
-        price: activeVariant.price,
-        image: activeVariant.image || getCurrentImage(),
-        variantId: activeVariant.variantId,
-        selectedColor: activeVariant.color,
-        selectedStorage: activeVariant.storage,
-      });
-      navigate("/cart");
+    if (currentUrl !== nextUrl) {
+      // Update URL silently without triggering navigation.
+      try {
+        window.history.replaceState({}, "", nextUrl);
+      } catch (e) {
+        console.warn("replaceState failed", e);
+      }
     }
   };
 
@@ -256,35 +419,80 @@ export default function ProductDetail() {
     return trimmed ? trimmed : fallbackProductImage;
   };
 
+  const getCurrentImage = () => {
+    if (!productImages.length) return fallbackProductImage;
+
+    const selected = productImages[selectedImageIndex] || productImages[0];
+    return normalizeImage(selected);
+  };
+
+  const getProductImages = () => {
+    if (!product) return [];
+
+    const variantImages = (currentVariant?.images || [])
+      .map((img) => String(img || "").trim())
+      .filter(Boolean);
+
+    if (variantImages.length > 0) {
+      return variantImages;
+    }
+
+    const base = (product.images || [])
+      .map((img) => String(img || "").trim())
+      .filter(Boolean);
+
+    return base.length > 0 ? base : [normalizeImage(product.image)];
+  };
+
+  const handleAddToCart = () => {
+    if (!product) return;
+
+    addToCart({
+      id: currentVariant?.variantId || displayProduct.id,
+      productId: currentVariant?.variantId || displayProduct.id,
+      name: displayName,
+      price: currentVariant?.price ?? displayProduct.price,
+      image: getCurrentImage(),
+      variantId: currentVariant?.variantId || displayProduct.id,
+      selectedColor: currentColor,
+      selectedStorage: currentStorage,
+    });
+    navigate("/cart");
+  };
+
   const handleBookToOrder = () => {
-    if (!product || !activeVariant) return;
+    if (!product) return;
     const userPhone = user?.phone || "";
     if (!isValidPhoneNumber(userPhone)) {
       toast.error("Please enter a valid phone number");
       return;
     }
+
+    const currentPrice = currentVariant?.price ?? product.price;
+
     addOrderNotification({
       name: user?.fullName || "Customer",
       mobileNumber: toNormalizedPhoneNumber(userPhone),
-      message: `Booking started: ${product.name} | Color: ${activeVariant.color} | Storage: ${activeVariant.storage} | ₹${Math.round(activeVariant.price).toLocaleString("en-IN")}`,
-      productId: activeVariant.variantId,
-      productName: product.name,
-      color: activeVariant.color,
-      storage: activeVariant.storage,
-      variantId: activeVariant.variantId,
-      price: activeVariant.price,
+      message: `Booking started: ${displayName} | Color: ${currentColor} | Storage: ${currentStorage} | ₹${Math.round(currentPrice).toLocaleString("en-IN")}`,
+      productId: currentVariant?.variantId || displayProduct.id,
+      productName: displayName,
+      color: currentColor,
+      storage: currentStorage,
+      variantId: currentVariant?.variantId || displayProduct.id,
+      price: currentPrice,
     });
     addToCart(
       {
-        id: activeVariant.variantId,
-        name: product.name,
-        price: activeVariant.price,
-        image: activeVariant.image || getCurrentImage(),
-        brand: product.brand,
-        category: product.category,
-        variantId: activeVariant.variantId,
-        selectedColor: activeVariant.color,
-        selectedStorage: activeVariant.storage,
+        id: currentVariant?.variantId || displayProduct.id,
+        productId: currentVariant?.variantId || displayProduct.id,
+        name: displayName,
+        price: currentPrice,
+        image: getCurrentImage(),
+        brand: displayProduct.brand,
+        category: displayProduct.category,
+        variantId: currentVariant?.variantId || displayProduct.id,
+        selectedColor: currentColor,
+        selectedStorage: currentStorage,
       },
       1,
     );
@@ -293,44 +501,59 @@ export default function ProductDetail() {
     });
   };
 
-  const getCurrentImage = () => {
-    if (!product) return fallbackProductImage;
+  const displayProduct = currentVariant?.product ?? product;
+  const displayName = useMemo(() => {
+    const baseName = (displayProduct?.name || product?.name || "").trim();
+    if (!baseName) return "";
 
-    // Use selectedImageIndex when user clicks on thumbnail
-    const selectedFromList = product.images?.[selectedImageIndex];
-    if (selectedFromList) {
-      return normalizeImage(selectedFromList);
-    }
+    const normalizedBase = baseName.replace(/\s*\([^)]*\)\s*$/g, "").trim();
+    const variantParts = [currentColor, currentStorage].filter((part) => {
+      const cleaned = part?.trim();
+      return Boolean(cleaned) && cleaned !== "Standard";
+    });
 
-    // Fall back to activeVariant image or product default
-    if (activeVariant?.image?.trim()) {
-      return normalizeImage(activeVariant.image);
-    }
-
-    return normalizeImage(selectedFromList || product.image);
-  };
-
-  const getProductImages = () => {
-    if (!product) return [];
-    // Return only product.images for thumbnails - getCurrentImage handles the display logic
-    const base = (product.images || []).filter(
-      (img) => (img || "").trim() !== "",
+    const alreadyIncludesVariant = variantParts.every((part) =>
+      baseName.toLowerCase().includes(part.toLowerCase()),
     );
-    return base.length > 0 ? base : [normalizeImage(product.image)];
-  };
+
+    if (alreadyIncludesVariant) {
+      return baseName;
+    }
+
+    if (variantParts.length === 0) {
+      return baseName;
+    }
+
+    return `${normalizedBase} (${variantParts.join(" / ")})`;
+  }, [currentColor, currentStorage, displayProduct?.name, product?.name]);
+  const productImages = getProductImages();
+  const currentPrice = currentVariant?.price ?? displayProduct?.price ?? 0;
+  const finalPrice = Math.round(currentPrice);
+  const originalPrice =
+    currentVariant?.originalPrice ?? displayProduct?.originalPrice ?? currentPrice;
+  const discountPercentage =
+    currentVariant?.discount ??
+    displayProduct?.discount ??
+    (originalPrice > finalPrice
+      ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
+      : 0);
+
+  const hasDiscount = discountPercentage > 0;
+  const displayStock = displayProduct?.stock ?? 0;
+  const isAvailable = Boolean(currentVariant?.stock ?? displayStock > 0);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-secondary">
+      <div className="min-h-screen bg-white">
         <Header />
-        <main className="pt-32 md:pt-40 pb-16">
-          <div className="container mx-auto px-4">
-            <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-              <div className="aspect-[4/5] bg-secondary rounded-3xl animate-pulse"></div>
+        <main className="pt-32 md:pt-40 pb-16 bg-white">
+          <div className="container mx-auto max-w-[1440px] px-6 lg:px-8">
+            <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-8 lg:gap-12">
+              <div className="aspect-[4/5] bg-slate-100 rounded-[32px] animate-pulse"></div>
               <div className="space-y-4">
-                <div className="h-8 bg-secondary rounded animate-pulse"></div>
-                <div className="h-6 bg-secondary rounded animate-pulse"></div>
-                <div className="h-4 bg-secondary rounded animate-pulse"></div>
+                <div className="h-10 bg-slate-100 rounded animate-pulse"></div>
+                <div className="h-8 bg-slate-100 rounded animate-pulse"></div>
+                <div className="h-6 bg-slate-100 rounded animate-pulse"></div>
               </div>
             </div>
           </div>
@@ -342,10 +565,10 @@ export default function ProductDetail() {
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-secondary">
+      <div className="min-h-screen bg-white">
         <Header />
-        <main className="pt-32 md:pt-40 pb-16">
-          <div className="container mx-auto px-4 text-center">
+        <main className="pt-32 md:pt-40 pb-16 bg-white">
+          <div className="container mx-auto max-w-[1440px] px-6 lg:px-8 text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">
               Product Not Found
             </h1>
@@ -357,25 +580,34 @@ export default function ProductDetail() {
     );
   }
 
-  const productImages = getProductImages();
-  // Compute final price based on `price` and `discount` (use Math.round and Indian formatting)
-  /* New Logic: price is Selling Price, originalPrice is MRP */
-  const finalPrice = Math.round(activeVariant?.price ?? product.price);
-  const originalPrice = activeVariant?.product.originalPrice
-    ? Math.round(activeVariant.product.originalPrice)
-    : finalPrice;
-  const discountPercentage =
-    product.discount ||
-    (originalPrice > finalPrice
-      ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
-      : 0);
+  const formatINR = (value: number) => `₹${value.toLocaleString("en-IN")}`;
+  const thumbnailImages = productImages.slice(0, 6);
+  const reviewCountLabel = (product.reviewsCount ?? product.ratingsCount) || 0;
 
-  const hasDiscount = discountPercentage > 0;
+  const handleShareClick = async () => {
+    const url = window.location.href;
+    const title = displayName;
 
-  const formatINR = (value: number) => `\u20B9${value.toLocaleString("en-IN")}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+      } catch {
+        // ignore cancellation
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard");
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to copy link");
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-secondary">
+    <div className="min-h-screen bg-white">
       <Header />
 
       <main className="pt-32 md:pt-40 pb-16">
@@ -405,20 +637,16 @@ export default function ProductDetail() {
               Products
             </Link>
             <ChevronRight className="w-4 h-4" />
-            <span className="text-foreground">
-              {currentGroup?.name || product.name}
-            </span>
+            <span className="text-foreground">{displayName}</span>
           </motion.div>
 
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-            {/* Left - Image Gallery */}
+          <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-8 lg:gap-10">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex flex-col gap-6"
+              className="flex flex-col gap-4"
             >
               <div className="flex gap-4">
-                {/* Thumbnails */}
                 <div className="flex flex-col gap-3">
                   {productImages.slice(0, 6).map((img, index) => (
                     <button
@@ -432,14 +660,13 @@ export default function ProductDetail() {
                     >
                       <img
                         src={img}
-                        alt={`${product.name} view ${index + 1}`}
+                        alt={`${displayName} view ${index + 1}`}
                         className="w-full h-full object-contain p-1"
                       />
                     </button>
                   ))}
                 </div>
 
-                {/* Main Image */}
                 <div className="flex-1 relative">
                   <div
                     className="bg-white rounded-3xl overflow-hidden aspect-[4/5] border border-border"
@@ -453,12 +680,11 @@ export default function ProductDetail() {
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3 }}
                       src={getCurrentImage()}
-                      alt={product.name}
+                      alt={displayName}
                       className="w-full h-full object-contain p-6"
                     />
                   </div>
 
-                  {/* Navigation Arrows */}
                   {productImages.length > 1 && (
                     <>
                       <button
@@ -483,311 +709,302 @@ export default function ProductDetail() {
                   </button>
                 </div>
               </div>
+            </motion.div>
 
-              {/* Delivery Info / Buttons moved here */}
-              <div className="flex gap-3">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex flex-col gap-5"
+            >
+              <div className="flex flex-col gap-2">
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
+                  {displayName}
+                </h1>
+                <p className="text-sm text-muted-foreground">{displayProduct.brand}</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {typeof product.rating === "number" && (
+                  <span className="inline-flex items-center gap-1 rounded bg-green-600 px-2 py-1 text-xs font-bold text-white">
+                    {product.rating.toFixed(1)}
+                    <Star className="w-3 h-3 fill-white text-white" />
+                  </span>
+                )}
+                {typeof (product.reviewsCount ?? product.ratingsCount) === "number" && (
+                  <span className="text-sm text-muted-foreground">
+                    {(product.reviewsCount ?? product.ratingsCount)!.toLocaleString("en-IN")} Ratings & Reviews
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <Badge variant={isAvailable ? "default" : "destructive"}>
+                  {isAvailable ? "In Stock" : "Out of Stock"}
+                </Badge>
+              </div>
+
+              <div className="space-y-3">
+                {availableStorages.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Storage Variants
+                    </h2>
+                    <div className="flex gap-3 overflow-x-auto pb-1">
+                      {availableStorages.map((storage) => {
+                        const nextVariant = findVariantForStorage(storage);
+                        const isStorageAvailable = Boolean(nextVariant);
+                        const storagePrice = nextVariant?.price || product.price;
+                        const storageOriginal = nextVariant?.originalPrice || product.originalPrice;
+                        const storageDiscount =
+                          nextVariant?.discount ||
+                          (storageOriginal && storagePrice
+                            ? Math.round(((storageOriginal - storagePrice) / storageOriginal) * 100)
+                            : 0);
+
+                        return (
+                          <button
+                            key={storage}
+                            type="button"
+                            disabled={!isStorageAvailable}
+                            onClick={() => {
+                              if (!isStorageAvailable) return;
+                              swapVariant(nextVariant);
+                            }}
+                            className={`inline-flex shrink-0 flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all ${
+                              currentStorage === storage
+                                ? "border-foreground bg-white shadow-sm"
+                                : "border-border bg-white/80"
+                            } ${
+                              !isStorageAvailable
+                                ? "cursor-not-allowed opacity-50"
+                                : ""
+                            }`}
+                          >
+                            <span className="text-sm font-semibold text-foreground">
+                              {storage}
+                            </span>
+                            <span className="mt-2 text-base font-bold text-foreground">
+                              {formatINR(Math.round(storagePrice))}
+                            </span>
+                            {storageOriginal && storageOriginal > storagePrice && (
+                              <span className="text-xs text-muted-foreground line-through">
+                                {formatINR(Math.round(storageOriginal))}
+                              </span>
+                            )}
+                            {storageDiscount > 0 && (
+                              <span className="mt-1 text-xs font-semibold text-green-600">
+                                {storageDiscount}% off
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {availableColors.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Colors - {currentColor}
+                    </h2>
+                    <div className="flex gap-3 overflow-x-auto pb-1">
+                      {availableColors.map((color) => {
+                        const nextVariant = findVariantForColor(color.name);
+                        const isColorAvailable = Boolean(nextVariant);
+
+                        return (
+                          <button
+                            key={color.name}
+                            type="button"
+                            disabled={!isColorAvailable}
+                            onClick={() => {
+                              if (!isColorAvailable) return;
+                              swapVariant(nextVariant);
+                            }}
+                            className={`inline-flex shrink-0 w-24 flex-col items-center gap-2 rounded-2xl border bg-white px-3 py-3 transition-all ${
+                              currentColor === color.name
+                                ? "border-foreground shadow-sm"
+                                : "border-border"
+                            } ${
+                              !isColorAvailable
+                                ? "cursor-not-allowed opacity-50"
+                                : ""
+                            }`}
+                          >
+                            {color.dotImage ? (
+                              <img
+                                src={color.dotImage}
+                                alt=""
+                                className="h-14 w-14 rounded-full object-cover border border-border"
+                              />
+                            ) : (
+                              <span
+                                className="h-14 w-14 rounded-full border border-border"
+                                style={{ backgroundColor: color.hex || "#d1d5db" }}
+                              />
+                            )}
+                            <span className="text-sm font-semibold text-foreground">
+                              {color.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-2xl font-bold text-foreground">{formatINR(finalPrice)}</span>
+                {hasDiscount && (
+                  <>
+                    <span className="text-base text-muted-foreground line-through">
+                      {formatINR(originalPrice)}
+                    </span>
+                    <span className="text-sm font-semibold text-green-600">
+                      {discountPercentage}% off
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {displayProduct.description && (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  {displayProduct.description}
+                </p>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="flex items-center gap-3 rounded-2xl border border-border px-3 py-3">
+                  <ShieldCheck className="w-5 h-5 text-foreground" />
+                  <span className="text-sm font-semibold text-foreground">
+                    100% Genuine Product
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 rounded-2xl border border-border px-3 py-3">
+                  <Headphones className="w-5 h-5 text-foreground" />
+                  <span className="text-sm font-semibold text-foreground">
+                    Usage Assistance
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 rounded-2xl border border-border px-3 py-3">
+                  <Wrench className="w-5 h-5 text-foreground" />
+                  <span className="text-sm font-semibold text-foreground">
+                    After Purchase Service
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-lg font-bold text-foreground mb-4">Highlights</h2>
+                <div className="space-y-4">
+                  {Array.isArray(displayProduct.highlights) &&
+                    displayProduct.highlights.map((highlight, index) => (
+                      <div key={index} className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          {highlight.toLowerCase().includes("processor") && (
+                            <Cpu className="w-6 h-6 text-primary" />
+                          )}
+                          {highlight.toLowerCase().includes("camera") && (
+                            <Camera className="w-6 h-6 text-primary" />
+                          )}
+                          {highlight.toLowerCase().includes("display") && (
+                            <Smartphone className="w-6 h-6 text-primary" />
+                          )}
+                          {highlight.toLowerCase().includes("battery") && (
+                            <BatteryCharging className="w-6 h-6 text-primary" />
+                          )}
+                          {!highlight.toLowerCase().includes("processor") &&
+                            !highlight.toLowerCase().includes("camera") &&
+                            !highlight.toLowerCase().includes("display") &&
+                            !highlight.toLowerCase().includes("battery") && (
+                              <Smartphone className="w-6 h-6 text-primary" />
+                            )}
+                        </div>
+                        <p className="text-sm font-medium text-foreground leading-6">
+                          {highlight}
+                        </p>
+                      </div>
+                    ))}
+
+                  {!Array.isArray(displayProduct.highlights) &&
+                    (() => {
+                      const keyOrder: Array<{
+                        key: string;
+                        title: string;
+                        icon: JSX.Element;
+                      }> = [
+                        {
+                          key: "processor",
+                          title: "Processor details",
+                          icon: <Cpu className="w-6 h-6 text-primary" />,
+                        },
+                        {
+                          key: "rearCamera",
+                          title: "Rear Camera specs",
+                          icon: <Camera className="w-6 h-6 text-primary" />,
+                        },
+                        {
+                          key: "frontCamera",
+                          title: "Front Camera",
+                          icon: <Camera className="w-6 h-6 text-primary" />,
+                        },
+                        {
+                          key: "display",
+                          title: "Display type & size",
+                          icon: <Smartphone className="w-6 h-6 text-primary" />,
+                        },
+                        {
+                          key: "battery",
+                          title: "Battery capacity",
+                          icon: <BatteryCharging className="w-6 h-6 text-primary" />,
+                        },
+                      ];
+
+                      const highlightsObj =
+                        (displayProduct.highlights as Record<string, string>) || {};
+
+                      return keyOrder.map((item) => {
+                        const val = highlightsObj[item.key];
+                        if (!val) return null;
+
+                        return (
+                          <div key={item.key} className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                              {item.icon}
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">
+                                {item.title}
+                              </p>
+                              <p className="text-sm text-muted-foreground leading-6 mt-1">
+                                {val}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <Button
                   onClick={handleAddToCart}
                   variant="outline"
-                  className="flex-1 rounded-full bg-white hover:bg-white border-border"
+                  className="w-full rounded-full bg-white hover:bg-white border-border"
                 >
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Add to Cart
                 </Button>
                 <Button
                   onClick={handleBookToOrder}
-                  className="flex-1 rounded-full bg-foreground text-background hover:bg-foreground/90"
+                  className="w-full rounded-full bg-foreground text-background hover:bg-foreground/90"
                 >
                   Book To Order
                 </Button>
               </div>
-            </motion.div>
-
-            {/* Right - Product Details */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="space-y-6"
-            >
-              {/* Title & Rating */}
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                  {currentGroup?.name || product.name}
-                </h1>
-                <p className="text-muted-foreground mb-2">{product.brand}</p>
-                <div className="flex items-center gap-3">
-                  {typeof product.rating === "number" && (
-                    <span className="inline-flex items-center gap-1 text-xs font-bold bg-green-600 text-white px-2 py-1 rounded">
-                      {product.rating.toFixed(1)}
-                      <Star className="w-3 h-3 fill-white text-white" />
-                    </span>
-                  )}
-                  {typeof product.ratingsCount === "number" && (
-                    <span className="text-sm text-muted-foreground">
-                      {product.ratingsCount.toLocaleString("en-IN")} Ratings &
-                      Reviews
-                    </span>
-                  )}
-                </div>
-                {product.stock === 0 && (
-                  <Badge variant="destructive" className="mt-2">
-                    Out of Stock
-                  </Badge>
-                )}
-              </div>
-
-              {/* Pricing */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  {/* Final price (bold + primary) */}
-                  <span className="text-2xl font-bold text-foreground">
-                    {formatINR(finalPrice)}
-                  </span>
-
-                  {/* If discount present show original price with strikethrough */}
-                  {hasDiscount && (
-                    <>
-                      <span className="text-lg text-muted-foreground line-through">
-                        {formatINR(originalPrice)}
-                      </span>
-                      <span className="text-sm text-green-600 font-bold">
-                        {discountPercentage}% off
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Description */}
-              {product.description && (
-                <p className="text-muted-foreground leading-relaxed">
-                  {product.description}
-                </p>
-              )}
-
-              {/* Storage + Colors */}
-              {availableStorages.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                    Storage - {selectedStorage || availableStorages[0]}
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {availableStorages.map((storage) => (
-                      <button
-                        key={storage}
-                        type="button"
-                        onClick={() => {
-                          setSelectedStorage(storage);
-                          setSelectedImageIndex(0);
-                        }}
-                        className={`px-3 py-2 rounded-lg border text-xs font-semibold ${
-                          selectedStorage === storage
-                            ? "border-foreground text-foreground"
-                            : "border-border text-muted-foreground hover:border-primary/50"
-                        }`}
-                      >
-                        {storage}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {availableColors.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                    Colors - {selectedColor || availableColors[0]}
-                  </h4>
-                  <div className="flex flex-wrap gap-3">
-                    {availableColors.map((color) => {
-                      const colorVariant = pickVariant(
-                        currentGroup!,
-                        color,
-                        selectedStorage,
-                      );
-                      return (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => {
-                            setSelectedColor(color);
-                            setSelectedImageIndex(0);
-                          }}
-                          className={`w-28 rounded-xl border-2 overflow-hidden transition-all ${
-                            selectedColor === color
-                              ? "border-foreground shadow-sm"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                        >
-                          <div className="bg-white p-3">
-                            <img
-                              src={
-                                colorVariant?.image?.trim()
-                                  ? colorVariant.image
-                                  : product.image?.trim()
-                                    ? product.image
-                                    : "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=500&fit=crop"
-                              }
-                              alt={color}
-                              className="w-full h-20 object-contain"
-                            />
-                          </div>
-                          <div className="text-xs font-semibold text-foreground py-2">
-                            {color}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Trust Icons */}
-              <div className="grid grid-cols-3 gap-6 pt-2">
-                <div className="flex flex-col items-center text-center gap-2">
-                  <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                    <ShieldCheck className="w-6 h-6 text-foreground" />
-                  </div>
-                  <p className="text-sm font-semibold text-foreground leading-tight">
-                    100% Genuine <br /> Product
-                  </p>
-                </div>
-
-                <div className="flex flex-col items-center text-center gap-2">
-                  <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                    <Headphones className="w-6 h-6 text-foreground" />
-                  </div>
-                  <p className="text-sm font-semibold text-foreground leading-tight">
-                    Usage <br /> Assistance
-                  </p>
-                </div>
-
-                <div className="flex flex-col items-center text-center gap-2">
-                  <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                    <Wrench className="w-6 h-6 text-foreground" />
-                  </div>
-                  <p className="text-sm font-semibold text-foreground leading-tight">
-                    After Purchase <br /> Service
-                  </p>
-                </div>
-              </div>
-
-              {/* Highlights */}
-              {(Array.isArray(product.highlights)
-                ? product.highlights.length > 0
-                : Object.values(product.highlights || {}).some((v) => !!v)) && (
-                <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg">
-                  <div className="p-5">
-                    <h3 className="text-lg font-bold text-foreground mb-4">
-                      Highlights
-                    </h3>
-
-                    <div className="space-y-4">
-                      {/* If highlights is an array (legacy) render as before */}
-                      {Array.isArray(product.highlights) &&
-                        product.highlights.map((highlight, index) => (
-                          <div key={index} className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                              {highlight
-                                .toLowerCase()
-                                .includes("processor") && (
-                                <Cpu className="w-6 h-6 text-primary" />
-                              )}
-                              {highlight.toLowerCase().includes("camera") && (
-                                <Camera className="w-6 h-6 text-primary" />
-                              )}
-                              {highlight.toLowerCase().includes("display") && (
-                                <Smartphone className="w-6 h-6 text-primary" />
-                              )}
-                              {highlight.toLowerCase().includes("battery") && (
-                                <BatteryCharging className="w-6 h-6 text-primary" />
-                              )}
-                              {!highlight.toLowerCase().includes("processor") &&
-                                !highlight.toLowerCase().includes("camera") &&
-                                !highlight.toLowerCase().includes("display") &&
-                                !highlight
-                                  .toLowerCase()
-                                  .includes("battery") && (
-                                  <Smartphone className="w-6 h-6 text-primary" />
-                                )}
-                            </div>
-                            <p className="text-foreground font-medium">
-                              {highlight}
-                            </p>
-                          </div>
-                        ))}
-
-                      {/* If highlights is an object (new MOBILE behavior) render only non-empty entries */}
-                      {!Array.isArray(product.highlights) &&
-                        (() => {
-                          const keyOrder: Array<{
-                            key: string;
-                            title: string;
-                            icon: JSX.Element;
-                          }> = [
-                            {
-                              key: "processor",
-                              title: "Processor details",
-                              icon: <Cpu className="w-6 h-6 text-primary" />,
-                            },
-                            {
-                              key: "rearCamera",
-                              title: "Rear Camera specs",
-                              icon: <Camera className="w-6 h-6 text-primary" />,
-                            },
-                            {
-                              key: "frontCamera",
-                              title: "Front Camera",
-                              icon: <Camera className="w-6 h-6 text-primary" />,
-                            },
-                            {
-                              key: "display",
-                              title: "Display type & size",
-                              icon: (
-                                <Smartphone className="w-6 h-6 text-primary" />
-                              ),
-                            },
-                            {
-                              key: "battery",
-                              title: "Battery capacity",
-                              icon: (
-                                <BatteryCharging className="w-6 h-6 text-primary" />
-                              ),
-                            },
-                          ];
-
-                          const highlightsObj =
-                            (product.highlights as Record<string, string>) ||
-                            {};
-
-                          return keyOrder.map((item) => {
-                            const val = highlightsObj[item.key];
-                            if (!val) return null;
-
-                            return (
-                              <div
-                                key={item.key}
-                                className="flex items-start gap-4"
-                              >
-                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                                  {item.icon}
-                                </div>
-                                <div>
-                                  <p className="text-foreground font-medium">
-                                    {item.title}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    {val}
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          });
-                        })()}
-                    </div>
-                  </div>
-                </div>
-              )}
             </motion.div>
           </div>
 

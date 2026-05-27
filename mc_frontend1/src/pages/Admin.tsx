@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -24,6 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { ProductVariantForm } from "@/components/ProductVariantForm";
+import AdminAddProduct from "./AdminAddProduct";
 import {
   useAdmin,
   Phone,
@@ -33,6 +36,7 @@ import {
   Technician,
 } from "@/contexts/AdminContext";
 import { useProducts, ProductProvider } from "@/contexts/ProductContext";
+import api from "@/lib/api";
 import {
   Plus,
   Pencil,
@@ -47,12 +51,19 @@ import {
   Search,
   Users as UsersIcon,
   Star,
+  ChevronDown,
+  Menu,
+  PanelLeftClose,
+  Flame,
+  Megaphone,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 
 // Product type definition
 type AdminProduct = {
   id: string;
+  familyId?: string;
   name: string;
   brand: string;
   category: string;
@@ -63,15 +74,69 @@ type AdminProduct = {
   status: "In Stock" | "Out of Stock";
   image: string;
   highlights: string[] | Record<string, string>;
-  colorVariants: { name: string; hex: string; image: string }[];
+  colors?: {
+    name: string;
+    hex?: string;
+    image?: string;
+    images?: string[];
+  }[];
+  colorVariants: {
+    name: string;
+    hex?: string;
+    image?: string;
+    images?: string[];
+  }[];
   isBestSeller?: boolean;
   isFeatured?: boolean;
   isNew?: boolean;
+  isNewArrival?: boolean;
+  isWeeklyTrending?: boolean;
   isUsed?: boolean;
   description?: string;
   images: string[];
   rating?: number;
+  ratingsCount?: number;
+  reviewsCount?: number;
+  specs?: Record<string, unknown>;
+  colorName?: string;
+  colorHex?: string;
+  storageOption?: string;
 };
+
+type ProductFormData = Omit<AdminProduct, "id"> & {
+  familyId?: string;
+  colorName?: string;
+  colorHex?: string;
+  storageOption?: string;
+};
+
+type VariantColorDraft = {
+  name: string;
+  hex: string;
+  image: string;
+  images: string[];
+  modelUrl: string;
+  inStock: boolean;
+};
+
+type StorageVariantDraft = {
+  id: string;
+  storage: string;
+  price: string;
+  originalPrice: string;
+  stock: string;
+  inStock: boolean;
+  expanded: boolean;
+  colors: VariantColorDraft[];
+};
+
+function ProductFormSectionTitle({ children }: Readonly<{ children: string }>) {
+  return (
+    <h3 className="rounded-lg border border-border/50 bg-card px-4 py-3 text-sm font-semibold text-foreground">
+      {children}
+    </h3>
+  );
+}
 
 // Product Form Component
 function ProductForm({
@@ -81,7 +146,7 @@ function ProductForm({
   isUsedMode = false,
 }: Readonly<{
   product?: AdminProduct;
-  onSubmit: (data: Omit<AdminProduct, "id">) => void;
+  onSubmit: (data: ProductFormData | ProductFormData[]) => void;
   onCancel: () => void;
   isUsedMode?: boolean;
 }>) {
@@ -98,6 +163,13 @@ function ProductForm({
     product?.originalPrice?.toString() || "",
   );
   const [discount, setDiscount] = useState(product?.discount?.toString() || "");
+  const [rating, setRating] = useState(product?.rating?.toString() || "");
+  const [ratingsCount, setRatingsCount] = useState(
+    product?.ratingsCount?.toString() || "",
+  );
+  const [reviewsCount, setReviewsCount] = useState(
+    product?.reviewsCount?.toString() || "",
+  );
   const [stock, setStock] = useState(product?.stock?.toString() || "");
 
   // Initialize 4 image slots
@@ -194,12 +266,37 @@ function ProductForm({
   );
   const [isFeatured, setIsFeatured] = useState(product?.isFeatured || false);
   const [isNew, setIsNew] = useState(product?.isNew || false);
+  const [isWeeklyTrending, setIsWeeklyTrending] = useState(
+    product?.isWeeklyTrending || false,
+  );
   const [isUsed] = useState(product?.isUsed || false);
   const [isUploading, setIsUploading] = useState(false);
   const [imageLoadErrors, setImageLoadErrors] = useState<
     Record<number, boolean>
   >({});
   const [imageLoading, setImageLoading] = useState<Record<number, boolean>>({});
+  const [storageVariants, setStorageVariants] = useState<StorageVariantDraft[]>(
+    [],
+  );
+  const [variantDraft, setVariantDraft] = useState<StorageVariantDraft>({
+    id: "",
+    storage: "",
+    price: "",
+    originalPrice: "",
+    stock: "1",
+    inStock: true,
+    expanded: true,
+    colors: [
+      {
+        name: "",
+        hex: "#000000",
+        image: "",
+        images: [],
+        modelUrl: "",
+        inStock: true,
+      },
+    ],
+  });
 
   const brands = [
     "Samsung",
@@ -364,7 +461,127 @@ function ProductForm({
   };
 
   const removeColorVariant = (index: number) => {
+    if (product) {
+      if (!confirm("Are you sure you want to delete this color variant?")) return;
+    }
     setColorVariants((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const buildVariantFamilyId = () =>
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `family-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const getBaseProduct = (): ProductFormData => ({
+    name,
+    brand,
+    category,
+    price: Number(price),
+    originalPrice: originalPrice ? Number(originalPrice) : undefined,
+    discount: discount ? Number(discount) : undefined,
+    rating: rating ? Number(rating) : undefined,
+    ratingsCount: ratingsCount ? Number(ratingsCount) : undefined,
+    reviewsCount: reviewsCount ? Number(reviewsCount) : undefined,
+    stock: Number(stock),
+    status: Number(stock) > 0 ? "In Stock" : "Out of Stock",
+    image: imageSlots.filter((slot) => slot.enabled && slot.url.trim() !== "")[0]?.url || "",
+    images: imageSlots
+      .filter((slot) => slot.enabled && slot.url.trim() !== "")
+      .map((slot) => slot.url),
+    description,
+    highlights: category === "MOBILE" ? mobileHighlights : highlights,
+    colors: product?.colors || product?.colorVariants || [],
+    colorVariants:
+      colorVariants.filter((v) => v.name?.trim?.() !== "").length > 0
+        ? colorVariants.filter((v) => v.name?.trim?.() !== "")
+        : product?.colorVariants || [],
+    isBestSeller,
+    isFeatured,
+    isNew,
+    isNewArrival: product?.isNewArrival || isNew,
+    isWeeklyTrending,
+    isUsed,
+  });
+
+  const buildVariantPayload = (
+    color: VariantColorDraft,
+    storage?: StorageVariantDraft,
+    familyId?: string,
+  ): ProductFormData => {
+    const baseProduct = getBaseProduct();
+
+    const fallbackImages = imageSlots
+      .filter((slot) => slot.enabled && slot.url.trim() !== "")
+      .map((slot) => slot.url);
+    const variantImages =
+      (color.images || []).filter((img) => img?.trim()) ||
+      (color.image?.trim() ? [color.image.trim()] : []);
+
+    const resolvedImages =
+      variantImages.length > 0
+        ? variantImages
+        : fallbackImages.length > 0
+          ? fallbackImages
+          : [];
+
+    const variantPrice = storage ? Number(storage.price) : Number(price);
+    const variantOriginalPrice = storage?.originalPrice
+      ? Number(storage.originalPrice)
+      : originalPrice
+        ? Number(originalPrice)
+        : undefined;
+    const variantDiscount =
+      storage?.originalPrice && Number(storage.originalPrice) > 0
+        ? Number(
+            (
+              ((Number(storage.originalPrice) - Number(storage.price)) /
+                Number(storage.originalPrice)) *
+              100
+            ).toFixed(2),
+          )
+        : discount
+          ? Number(discount)
+          : undefined;
+
+    const variantStock = storage
+      ? storage.inStock
+        ? Number(storage.stock)
+        : 0
+      : Number(stock);
+
+    return {
+      ...baseProduct,
+      familyId,
+      name: storage
+        ? `${name} (${color.name.trim()}, ${storage.storage.trim()})`
+        : `${name} (${color.name.trim()})`,
+      price: variantPrice,
+      originalPrice: variantOriginalPrice,
+      discount: variantDiscount,
+      stock: variantStock,
+      status: variantStock > 0 ? "In Stock" : "Out of Stock",
+      image: resolvedImages[0] || "",
+      images: resolvedImages,
+      colors: [
+        {
+          name: color.name.trim(),
+          hex: color.hex || "#000000",
+          image: resolvedImages[0] || "",
+          images: resolvedImages,
+        },
+      ],
+      colorVariants: [
+        {
+          name: color.name.trim(),
+          hex: color.hex || "#000000",
+          image: resolvedImages[0] || "",
+        },
+      ],
+      colorName: color.name.trim(),
+      colorHex: color.hex || "#000000",
+      storageOption: storage?.storage.trim() || undefined,
+      specs: color.modelUrl ? { model3dUrl: color.modelUrl } : undefined,
+    };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -379,30 +596,46 @@ function ProductForm({
       return;
     }
 
-    const enabledImages = imageSlots
-      .filter((slot) => slot.enabled && slot.url.trim() !== "")
-      .map((slot) => slot.url);
+    const baseProduct = getBaseProduct();
 
-    const stockNum = Number(stock);
-    onSubmit({
-      name,
-      brand,
-      category,
-      price: Number(price),
-      originalPrice: originalPrice ? Number(originalPrice) : undefined,
-      discount: discount ? Number(discount) : undefined,
-      stock: stockNum,
-      status: stockNum > 0 ? "In Stock" : "Out of Stock",
-      image: enabledImages[0] || "",
-      images: enabledImages,
-      description,
-      highlights: category === "MOBILE" ? mobileHighlights : highlights,
-      colorVariants: colorVariants.filter((v) => v.name.trim() !== ""),
-      isBestSeller,
-      isFeatured,
-      isNew,
-      isUsed,
-    });
+    const filteredColors = colorVariants
+      .filter((variant) => variant.name?.trim())
+      .map((variant) => ({
+        name: variant.name.trim(),
+        hex: variant.hex || "#000000",
+        image: variant.image || "",
+        images: variant.image ? [variant.image] : [],
+      }));
+
+    const hasStorageVariants = storageVariants.length > 0;
+    const shouldCreateFamily = hasStorageVariants || filteredColors.length > 1;
+    const familyId = shouldCreateFamily ? buildVariantFamilyId() : undefined;
+
+    if (hasStorageVariants) {
+      const variantProducts = storageVariants.flatMap((variant) =>
+        variant.colors.map((color) =>
+          buildVariantPayload(color, variant, familyId),
+        ),
+      );
+
+      if (variantProducts.length === 0) {
+        toast.error("Add at least one valid color and storage variant");
+        return;
+      }
+
+      onSubmit(variantProducts);
+      return;
+    }
+
+    if (filteredColors.length > 0) {
+      const variantProducts = filteredColors.map((color) =>
+        buildVariantPayload(color, undefined, familyId),
+      );
+      onSubmit(variantProducts);
+      return;
+    }
+
+    onSubmit(baseProduct);
   };
 
   const handleImageUpload = async (file: File, index: number) => {
@@ -442,9 +675,169 @@ function ProductForm({
 
   const clearImageSlot = (index: number) => {
     const newSlots = [...imageSlots];
+    if (product && newSlots[index]?.url) {
+      if (!confirm("Are you sure you want to remove this image?")) return;
+    }
     newSlots[index].url = "";
     setImageSlots(newSlots);
     // Also clear the file input if possible (though we don't have a ref, resetting URL is the main part)
+  };
+
+  const resetVariantDraft = () => {
+    setVariantDraft({
+      id: "",
+      storage: "",
+      price: "",
+      originalPrice: "",
+      stock: "1",
+      inStock: true,
+      expanded: true,
+      colors: [
+        {
+          name: "",
+          hex: "#000000",
+          image: "",
+          images: [],
+          modelUrl: "",
+          inStock: true,
+        },
+      ],
+    });
+  };
+
+  const updateVariantDraft = (
+    field: keyof Omit<StorageVariantDraft, "colors">,
+    value: string | boolean,
+  ) => {
+    setVariantDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateVariantDraftColor = (
+    index: number,
+    field: keyof VariantColorDraft,
+    value: string | boolean | string[],
+  ) => {
+    setVariantDraft((prev) => ({
+      ...prev,
+      colors: prev.colors.map((color, colorIndex) =>
+        colorIndex === index ? { ...color, [field]: value } : color,
+      ),
+    }));
+  };
+
+  const addVariantDraftColor = () => {
+    setVariantDraft((prev) => ({
+      ...prev,
+      colors: [
+        ...prev.colors,
+        {
+          name: "",
+          hex: "#000000",
+          image: "",
+          images: [],
+          modelUrl: "",
+          inStock: true,
+        },
+      ],
+    }));
+  };
+
+  const addColorToAllVariants = () => {
+    const template = variantDraft.colors[0];
+    if (!template.name.trim()) {
+      toast.error("Enter a color name before adding it to all variants");
+      return;
+    }
+
+    setStorageVariants((prev) =>
+      prev.map((variant) => ({
+        ...variant,
+        colors: variant.colors.some(
+          (color) =>
+            color.name.trim().toLowerCase() ===
+            template.name.trim().toLowerCase(),
+        )
+          ? variant.colors
+          : [...variant.colors, { ...template }],
+      })),
+    );
+  };
+
+  const addStorageVariant = () => {
+    if (!variantDraft.storage.trim() || !variantDraft.price.trim()) {
+      toast.error("Storage capacity and selling price are required");
+      return;
+    }
+
+    const validColors = variantDraft.colors.filter((color) =>
+      color.name.trim(),
+    );
+
+    if (validColors.length === 0) {
+      toast.error("Add at least one color for this variant");
+      return;
+    }
+
+    setStorageVariants((prev) => [
+      ...prev,
+      {
+        ...variantDraft,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        colors: validColors,
+      },
+    ]);
+    resetVariantDraft();
+  };
+
+  const editStorageVariant = (variant: StorageVariantDraft) => {
+    setVariantDraft({ ...variant, id: "" });
+    setStorageVariants((prev) => prev.filter((item) => item.id !== variant.id));
+  };
+
+  const deleteStorageVariant = (id: string) => {
+    if (product) {
+      if (!confirm("Are you sure you want to delete this storage variant?")) return;
+    }
+    setStorageVariants((prev) => prev.filter((variant) => variant.id !== id));
+  };
+
+  const toggleStorageVariantExpanded = (id: string) => {
+    setStorageVariants((prev) =>
+      prev.map((variant) =>
+        variant.id === id
+          ? { ...variant, expanded: !variant.expanded }
+          : variant,
+      ),
+    );
+  };
+
+  const uploadVariantColorImage = async (
+    file: File,
+    colorIndex: number,
+  ) => {
+    try {
+      setIsUploading(true);
+      const url = await uploadImage(file);
+      setVariantDraft((prev) => ({
+        ...prev,
+        colors: prev.colors.map((color, index) =>
+          index === colorIndex
+            ? {
+                ...color,
+                image: color.image || url,
+                images: [...color.images, url],
+              }
+            : color,
+        ),
+      }));
+      toast.success("Variant image uploaded successfully");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Image upload failed",
+      );
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -452,6 +845,7 @@ function ProductForm({
       onSubmit={handleSubmit}
       className="space-y-4 max-h-[80vh] overflow-y-auto"
     >
+      <ProductFormSectionTitle>Basic Information</ProductFormSectionTitle>
       <div>
         <Label htmlFor="name">Product Name</Label>
         <Input
@@ -506,6 +900,10 @@ function ProductForm({
         </div>
       )}
 
+      <ProductFormSectionTitle>Base Pricing (Optional)</ProductFormSectionTitle>
+      <p className="text-xs text-muted-foreground">
+        Use this for products without storage variants
+      </p>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="price">Price (₹)</Label>
@@ -552,6 +950,57 @@ function ProductForm({
         </div>
       </div>
 
+      <ProductFormSectionTitle>Card Descriptions</ProductFormSectionTitle>
+      <div className="p-3 border rounded-lg bg-secondary/10">
+        <Label htmlFor="description-card">Card Description</Label>
+        <Textarea
+          id="description-card"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Short product details shown across product surfaces..."
+        />
+      </div>
+
+      <ProductFormSectionTitle>Ratings Section</ProductFormSectionTitle>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <Label htmlFor="rating">Rating</Label>
+          <Input
+            id="rating"
+            type="number"
+            step="0.1"
+            min="0"
+            max="5"
+            value={rating}
+            onChange={(e) => setRating(e.target.value)}
+            placeholder="4.5"
+          />
+        </div>
+        <div>
+          <Label htmlFor="ratingsCount">Reviews Count</Label>
+          <Input
+            id="ratingsCount"
+            type="number"
+            min="0"
+            value={ratingsCount}
+            onChange={(e) => setRatingsCount(e.target.value)}
+            placeholder="120"
+          />
+        </div>
+        <div>
+          <Label htmlFor="reviewsCount">Number of Reviews</Label>
+          <Input
+            id="reviewsCount"
+            type="number"
+            min="0"
+            value={reviewsCount}
+            onChange={(e) => setReviewsCount(e.target.value)}
+            placeholder="42"
+          />
+        </div>
+      </div>
+
+      <ProductFormSectionTitle>Color Options</ProductFormSectionTitle>
       <div className="space-y-4">
         <Label>Product Images (Max 4)</Label>
         {imageSlots.map((slot, index) => (
@@ -677,6 +1126,7 @@ function ProductForm({
       {/* Highlights Section */}
       {availableHighlights.length > 0 && (
         <div>
+          <ProductFormSectionTitle>Product Highlights</ProductFormSectionTitle>
           <Label>Product Highlights (Category: {category})</Label>
           <div className="grid grid-cols-1 gap-2 mt-2 p-3 border rounded-lg bg-secondary/20">
             <p className="text-xs text-muted-foreground mb-2">
@@ -774,79 +1224,193 @@ function ProductForm({
 
       {/* Color Variants Section */}
       <div>
-        <div className="flex items-center justify-between">
-          <Label>Color Variants</Label>
-          <Button
-            type="button"
-            onClick={addColorVariant}
-            size="sm"
-            variant="outline"
-          >
-            <Plus className="w-4 h-4 mr-1" /> Add Color
-          </Button>
+        <ProductFormSectionTitle>Storage Variants (Optional)</ProductFormSectionTitle>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-3 border rounded-lg bg-secondary/10 mb-4">
+          <div>
+            <Label>Storage Capacity</Label>
+            <Input
+              value={variantDraft.storage}
+              onChange={(e) => updateVariantDraft("storage", e.target.value)}
+              placeholder="12GB+256GB"
+            />
+          </div>
+          <div>
+            <Label>Comparative Price</Label>
+            <Input
+              type="number"
+              value={variantDraft.originalPrice}
+              onChange={(e) =>
+                updateVariantDraft("originalPrice", e.target.value)
+              }
+              placeholder="76999"
+            />
+          </div>
+          <div>
+            <Label>Selling Price</Label>
+            <Input
+              type="number"
+              value={variantDraft.price}
+              onChange={(e) => updateVariantDraft("price", e.target.value)}
+              placeholder="72999"
+            />
+          </div>
+          <label className="flex items-center gap-2 pt-6 text-sm">
+            <input
+              type="checkbox"
+              checked={variantDraft.inStock}
+              onChange={(e) => {
+                updateVariantDraft("inStock", e.target.checked);
+                if (!e.target.checked) updateVariantDraft("stock", "0");
+                if (e.target.checked && variantDraft.stock === "0") {
+                  updateVariantDraft("stock", "1");
+                }
+              }}
+              className="rounded border-2 w-4 h-4"
+            />
+            In Stock
+          </label>
+          <div>
+            <Label>Stock Quantity</Label>
+            <Input
+              type="number"
+              value={variantDraft.stock}
+              onChange={(e) => updateVariantDraft("stock", e.target.value)}
+              placeholder="25"
+            />
+          </div>
         </div>
+        <ProductFormSectionTitle>Color Options</ProductFormSectionTitle>
         <div className="space-y-3 mt-2">
-          {colorVariants.length === 0 && (
-            <p className="text-xs text-muted-foreground p-3 border rounded-lg bg-secondary/20">
-              No color variants added. Click "Add Color" to add product color
-              options.
-            </p>
-          )}
-          {colorVariants.map((variant, index) => (
+          {variantDraft.colors.map((color, index) => (
             <div
-              key={`${variant.name || variant.hex}-${index}`}
-              className="grid grid-cols-5 gap-2 p-3 border rounded-lg bg-secondary/20"
+              key={`${color.name || color.hex}-${index}`}
+              className="space-y-3 p-3 border rounded-lg bg-secondary/20"
             >
-              <Input
-                placeholder="Color name (e.g., Black)"
-                value={variant.name}
-                onChange={(e) =>
-                  updateColorVariant(index, "name", e.target.value)
-                }
-              />
-              <div className="flex items-center gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <Label>Color Name</Label>
+                  <Input
+                    placeholder="Sand Storm"
+                    value={color.name}
+                    onChange={(e) =>
+                      updateVariantDraftColor(index, "name", e.target.value)
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Swatch</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="color"
+                      value={color.hex}
+                      onChange={(e) =>
+                        updateVariantDraftColor(index, "hex", e.target.value)
+                      }
+                      className="w-12 h-10 p-1 rounded"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {color.hex}
+                    </span>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 pt-6 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={color.inStock}
+                    onChange={(e) =>
+                      updateVariantDraftColor(
+                        index,
+                        "inStock",
+                        e.target.checked,
+                      )
+                    }
+                    className="rounded border-2 w-4 h-4"
+                  />
+                  Color In Stock
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
                 <Input
-                  type="color"
-                  value={variant.hex}
+                  placeholder="Product image URL"
+                  value={color.image}
                   onChange={(e) =>
-                    updateColorVariant(index, "hex", e.target.value)
+                    updateVariantDraftColor(index, "image", e.target.value)
                   }
-                  className="w-12 h-10 p-1 rounded"
                 />
-                <span className="text-xs text-muted-foreground">
-                  {variant.hex}
-                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    if (!color.image.trim()) {
+                      toast.error("Enter an image URL before adding it");
+                      return;
+                    }
+                    updateVariantDraftColor(index, "images", [
+                      ...color.images,
+                      color.image.trim(),
+                    ]);
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Add Image
+                </Button>
               </div>
+
+              <div>
+                <Input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadVariantColorImage(file, index);
+                  }}
+                  disabled={isUploading}
+                />
+              </div>
+
               <Input
-                placeholder="Variant image URL (optional)"
-                value={variant.image}
+                placeholder="3D Model URL (optional)"
+                value={color.modelUrl}
                 onChange={(e) =>
-                  updateColorVariant(index, "image", e.target.value)
+                  updateVariantDraftColor(index, "modelUrl", e.target.value)
                 }
               />
-              <div className="flex items-center">
-                {variant.hex && (
-                  <div
-                    className="w-6 h-6 rounded border-2 border-border mr-2"
-                    style={{ backgroundColor: variant.hex }}
-                  ></div>
-                )}
-              </div>
-              <Button
-                type="button"
-                onClick={() => removeColorVariant(index)}
-                size="sm"
-                variant="destructive"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+
+              {color.images.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {color.images.map((imageUrl, imageIndex) => (
+                    <div
+                      key={`${imageUrl}-${imageIndex}`}
+                      className="h-14 w-14 overflow-hidden rounded border bg-background"
+                    >
+                      <img
+                        src={imageUrl}
+                        alt={color.name || "Variant"}
+                        className="h-full w-full object-contain"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={addVariantDraftColor}>
+              <Plus className="w-4 h-4 mr-1" /> Add Color (General)
+            </Button>
+            <Button type="button" variant="outline" onClick={addColorToAllVariants}>
+              <Plus className="w-4 h-4 mr-1" /> Add Color To All Variants
+            </Button>
+            <Button type="button" className="btn-gradient" onClick={addStorageVariant}>
+              <Plus className="w-4 h-4 mr-1" /> Add Variant
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Product Flags Section */}
       <div>
+        <ProductFormSectionTitle>Product Status</ProductFormSectionTitle>
         <Label>Product Flags</Label>
         <div className="grid grid-cols-1 gap-3 mt-2 p-3 border rounded-lg bg-secondary/20">
           <label className="flex items-center space-x-2 hover:bg-secondary/50 p-1 rounded">
@@ -870,13 +1434,193 @@ function ProductForm({
           <label className="flex items-center space-x-2 hover:bg-secondary/50 p-1 rounded">
             <input
               type="checkbox"
+              checked={Number(stock || 0) === 0}
+              onChange={(e) => {
+                if (e.target.checked) setStock("0");
+                if (!e.target.checked && Number(stock || 0) === 0) setStock("1");
+              }}
+              className="rounded border-2 w-4 h-4"
+            />
+            <span className="text-sm">Out Of Stock</span>
+          </label>
+          <label className="flex items-center space-x-2 hover:bg-secondary/50 p-1 rounded">
+            <input
+              type="checkbox"
               checked={isNew}
               onChange={(e) => setIsNew(e.target.checked)}
               className="rounded border-2 w-4 h-4"
             />
             <span className="text-sm">New Arrival</span>
           </label>
+          <label className="flex items-center space-x-2 hover:bg-secondary/50 p-1 rounded">
+            <input
+              type="checkbox"
+              checked={isWeeklyTrending}
+              onChange={(e) => setIsWeeklyTrending(e.target.checked)}
+              className="rounded border-2 w-4 h-4"
+            />
+            <span className="text-sm">Weekly Trending</span>
+          </label>
         </div>
+      </div>
+
+      <div>
+        <ProductFormSectionTitle>Added Variants</ProductFormSectionTitle>
+        {storageVariants.length === 0 ? (
+          <p className="p-3 border rounded-lg bg-secondary/10 text-xs text-muted-foreground">
+            No storage variants added. Saving now will create one standard
+            product using the base pricing fields.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {storageVariants.map((variant) => (
+              <div
+                key={variant.id}
+                className="p-3 border rounded-lg bg-secondary/10 space-y-3"
+              >
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Storage Name</p>
+                    <p className="font-medium text-foreground">
+                      {variant.storage}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Price</p>
+                    <p className="font-medium text-foreground">
+                      ₹{Number(variant.price || 0).toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Old Price</p>
+                    <p className="font-medium text-foreground">
+                      {variant.originalPrice
+                        ? `₹${Number(variant.originalPrice).toLocaleString(
+                            "en-IN",
+                          )}`
+                        : "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Stock Status</p>
+                    <p className="font-medium text-foreground">
+                      {variant.inStock && Number(variant.stock || 0) > 0
+                        ? "In Stock"
+                        : "Out Of Stock"}
+                    </p>
+                  </div>
+                </div>
+                {variant.expanded && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {variant.colors.map((color) => (
+                      <div
+                        key={`${variant.id}-${color.name}`}
+                        className="flex items-center gap-2 rounded border bg-background p-2 text-xs"
+                      >
+                        <div
+                          className="h-5 w-5 rounded border"
+                          style={{ backgroundColor: color.hex }}
+                        />
+                        <span className="font-medium">{color.name}</span>
+                        <span className="text-muted-foreground">
+                          {color.inStock ? "In Stock" : "Out Of Stock"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => editStorageVariant(variant)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => deleteStorageVariant(variant.id)}
+                  >
+                    Delete
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => toggleStorageVariantExpanded(variant.id)}
+                  >
+                    <ChevronDown className="w-4 h-4 mr-1" />
+                    Expand
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {false && (
+        <div className="p-3 border rounded-lg bg-secondary/10 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground">Storage Name</p>
+              <p className="font-medium text-foreground">Standard</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Price</p>
+              <p className="font-medium text-foreground">
+                ₹{Number(price || 0).toLocaleString("en-IN")}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Old Price</p>
+              <p className="font-medium text-foreground">
+                {originalPrice
+                  ? `₹${Number(originalPrice).toLocaleString("en-IN")}`
+                  : "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Stock Status</p>
+              <p className="font-medium text-foreground">
+                {Number(stock || 0) > 0 ? "In Stock" : "Out Of Stock"}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => document.getElementById("price")?.focus()}
+            >
+              Edit
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setPrice("");
+                setOriginalPrice("");
+                setDiscount("");
+                setStock("");
+              }}
+            >
+              Delete
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => document.getElementById("enable-image-0")?.focus()}
+            >
+              Expand
+            </Button>
+          </div>
+        </div>
+        )}
       </div>
 
       <div className="flex gap-2 justify-end">
@@ -905,17 +1649,20 @@ function ProductForm({
 function ProductsManagement({
   defaultIsUsed = false,
 }: Readonly<{ defaultIsUsed?: boolean }>) {
+  const navigate = useNavigate();
   const fallbackProductImage =
     "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=500&fit=crop";
-  const { products, createProduct, updateProduct, deleteProduct, categories } =
+  const { products, createProduct, updateProduct, deleteProduct, categories, uploadImage } =
     useProducts();
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedBrand, setSelectedBrand] = useState("All");
+  const [selectedStockStatus, setSelectedStockStatus] = useState("All");
+  const [selectedFlag, setSelectedFlag] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(
     null,
   );
-  const [isAddOpen, setIsAddOpen] = useState(false);
 
   // ... (keeping existing transform logic)
 
@@ -924,11 +1671,25 @@ function ProductsManagement({
     status: p.stock > 0 ? ("In Stock" as const) : ("Out of Stock" as const),
     image: p.images?.[0] || p.image || fallbackProductImage,
   }));
+  const brandOptions = Array.from(
+    new Set(adminProducts.map((product) => product.brand).filter(Boolean)),
+  ).sort();
 
   const filteredProducts = adminProducts
     .filter((product) => {
       const matchesCategory =
         selectedCategory === "All" || product.category === selectedCategory;
+      const matchesBrand =
+        selectedBrand === "All" || product.brand === selectedBrand;
+      const matchesStock =
+        selectedStockStatus === "All" ||
+        (selectedStockStatus === "in-stock" && product.stock > 0) ||
+        (selectedStockStatus === "out-of-stock" && product.stock <= 0);
+      const matchesFlag =
+        selectedFlag === "All" ||
+        (selectedFlag === "featured" && product.isFeatured) ||
+        (selectedFlag === "weekly" && product.isWeeklyTrending) ||
+        (selectedFlag === "new" && product.isNew);
       const matchesSearch = product.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
@@ -940,7 +1701,14 @@ function ProductsManagement({
         ? isUsedPhoneCategory
         : !isUsedPhoneCategory;
 
-      return matchesCategory && matchesSearch && matchesType;
+      return (
+        matchesCategory &&
+        matchesBrand &&
+        matchesStock &&
+        matchesFlag &&
+        matchesSearch &&
+        matchesType
+      );
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -956,30 +1724,13 @@ function ProductsManagement({
       }
     });
 
-  const handleAdd = async (data: Omit<AdminProduct, "id">) => {
-    try {
-      const productData = {
-        ...data,
-        isUsed: defaultIsUsed,
-      };
-      await createProduct(productData);
-      setIsAddOpen(false);
-      toast.success("Product added successfully");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to add product",
-      );
-    }
-  };
-
-  const handleUpdate = async (data: Omit<AdminProduct, "id">) => {
+  const handleUpdate = async (data: ProductFormData | ProductFormData[]) => {
     if (editingProduct) {
       try {
-        const productData = {
-          ...data,
-          isUsed: defaultIsUsed,
-        };
-        await updateProduct(editingProduct.id, productData);
+        const firstItem = Array.isArray(data) ? data[0] : data;
+        // Merge updated fields into the existing product to avoid wiping untouched fields
+        const merged = { ...editingProduct, ...firstItem, isUsed: defaultIsUsed };
+        await updateProduct(editingProduct.id, merged as any);
         setEditingProduct(null);
         toast.success("Product updated successfully");
       } catch (error) {
@@ -1014,6 +1765,22 @@ function ProductsManagement({
     }
   };
 
+  const toggleProductField = async (
+    product: AdminProduct,
+    field: "isFeatured" | "isWeeklyTrending" | "stock",
+  ) => {
+    try {
+      const payload =
+        field === "stock"
+          ? { stock: product.stock > 0 ? 0 : 1 }
+          : { [field]: !product[field] };
+      await updateProduct(product.id, payload);
+      toast.success("Product updated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update product");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1021,28 +1788,9 @@ function ProductsManagement({
           Products Management
         </h2>
 
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button className="btn-gradient">
-              <Plus className="w-4 h-4 mr-2" /> Add Product
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                Add New {defaultIsUsed ? "Used Phone" : "Product"}
-              </DialogTitle>
-              <DialogDescription>
-                Fill in the details to add a new product to your inventory.
-              </DialogDescription>
-            </DialogHeader>
-            <ProductForm
-              onSubmit={handleAdd}
-              onCancel={() => setIsAddOpen(false)}
-              isUsedMode={defaultIsUsed}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button className="btn-gradient" onClick={() => navigate("/admin/add-product")}>
+          <Plus className="w-4 h-4 mr-2" /> Add Product
+        </Button>
       </div>
 
       {/* Category Filter */}
@@ -1073,18 +1821,65 @@ function ProductsManagement({
       </div>
 
       {/* Search and Sort */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
-            placeholder="Search products..."
+            placeholder="Search Product"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
           />
         </div>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger>
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Categories</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={category.name}>
+                {category.displayName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+          <SelectTrigger>
+            <SelectValue placeholder="Brand" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Brands</SelectItem>
+            {brandOptions.map((brand) => (
+              <SelectItem key={brand} value={brand}>
+                {brand}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={selectedStockStatus} onValueChange={setSelectedStockStatus}>
+          <SelectTrigger>
+            <SelectValue placeholder="Stock Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Stock</SelectItem>
+            <SelectItem value="in-stock">In Stock</SelectItem>
+            <SelectItem value="out-of-stock">Out Of Stock</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={selectedFlag} onValueChange={setSelectedFlag}>
+          <SelectTrigger>
+            <SelectValue placeholder="Flags" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All Flags</SelectItem>
+            <SelectItem value="featured">Featured</SelectItem>
+            <SelectItem value="weekly">Weekly Trending</SelectItem>
+            <SelectItem value="new">New Arrival</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-full sm:w-48">
+          <SelectTrigger>
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
@@ -1137,18 +1932,16 @@ function ProductsManagement({
                         <Pencil className="w-3 h-3 sm:w-4 sm:h-4" />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-md">
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>Edit Product</DialogTitle>
                         <DialogDescription>
                           Update the product information below.
                         </DialogDescription>
                       </DialogHeader>
-                      <ProductForm
-                        product={product}
-                        onSubmit={handleUpdate}
+                      <AdminAddProduct
+                        editingProduct={product}
                         onCancel={() => setEditingProduct(null)}
-                        isUsedMode={product.isUsed}
                       />
                     </DialogContent>
                   </Dialog>
@@ -1189,6 +1982,55 @@ function ProductsManagement({
                   </div>
                   <div className="text-[7px] sm:text-[10px] text-muted-foreground font-medium">
                     Stock: {product.stock}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {product.rating ? (
+                      <Badge className="text-[7px] sm:text-[10px]">
+                        <Star className="w-3 h-3 mr-1" />
+                        {product.rating}
+                      </Badge>
+                    ) : null}
+                    {product.isFeatured ? <Badge className="text-[7px] sm:text-[10px]">Featured</Badge> : null}
+                    {product.isWeeklyTrending ? <Badge className="text-[7px] sm:text-[10px]">Trending</Badge> : null}
+                    {product.isNew ? <Badge className="text-[7px] sm:text-[10px]">New</Badge> : null}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[10px]"
+                      onClick={() => toggleProductField(product, "isFeatured")}
+                    >
+                      <Star className="w-3 h-3 mr-1" /> Featured
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[10px]"
+                      onClick={() => toggleProductField(product, "isWeeklyTrending")}
+                    >
+                      <Flame className="w-3 h-3 mr-1" /> Weekly
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[10px]"
+                      onClick={() => toggleProductField(product, "stock")}
+                    >
+                      <Package className="w-3 h-3 mr-1" /> Stock
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      className="h-7 text-[10px]"
+                      onClick={() => handleDelete(product.id)}
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" /> Delete
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -2729,7 +3571,641 @@ function ServicesSettings() {
 }
 
 // Main Admin Component
+type AdminSectionId =
+  | "products"
+  | "banners"
+  | "brands"
+  | "categories"
+  | "feature-icons"
+  | "deals"
+  | "popups"
+  | "orders"
+  | "customers";
+
+const adminSections: {
+  id: AdminSectionId;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { id: "products", label: "Product Management", icon: Package },
+  { id: "banners", label: "Banner Management", icon: Images },
+  { id: "brands", label: "Brand Management", icon: Tag },
+  { id: "categories", label: "Category Management", icon: Settings },
+  { id: "feature-icons", label: "Feature Icon Management", icon: Star },
+  { id: "deals", label: "Deals Management", icon: Flame },
+  { id: "popups", label: "Popup Management", icon: Megaphone },
+  { id: "orders", label: "Order Management", icon: FileText },
+  { id: "customers", label: "Customer Management", icon: UsersIcon },
+];
+
+type AdminResource = {
+  id: string;
+  title: string;
+  enabled: boolean;
+  order: number;
+  data: Record<string, unknown>;
+};
+
+function AdminResourceManager({
+  type,
+  title,
+  fields,
+}: Readonly<{
+  type: "banner" | "brand" | "feature-icon" | "deal" | "popup";
+  title: string;
+  fields: { key: string; label: string; kind?: "text" | "number" | "textarea" }[];
+}>) {
+  const { uploadImage } = useProducts();
+  const [resources, setResources] = useState<AdminResource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<AdminResource | null>(null);
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [enabled, setEnabled] = useState(true);
+
+  const loadResources = async () => {
+    try {
+      setLoading(true);
+      const response = (await api(`/admin/resources/${type}`)) as {
+        resources: AdminResource[];
+      };
+      setResources(response.resources || []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load data");
+      setResources([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleProductField = async (
+    product: AdminProduct,
+    field: "isFeatured" | "isWeeklyTrending" | "stock",
+  ) => {
+    try {
+      const payload =
+        field === "stock"
+          ? { stock: product.stock > 0 ? 0 : 1 }
+          : { [field]: !product[field] };
+      await updateProduct(product.id, payload);
+      toast.success("Product updated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update product");
+    }
+  };
+
+  useEffect(() => {
+    loadResources();
+  }, [type]);
+
+  const resetForm = () => {
+    setEditing(null);
+    setForm({});
+    setEnabled(true);
+  };
+
+  const saveResource = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const payload = {
+      title: form.title || form.name || "",
+      enabled,
+      order: Number(form.order || 0),
+      data: form,
+    };
+    try {
+      if (editing) {
+        await api(`/admin/resources/${type}/${editing.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await api(`/admin/resources/${type}`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
+      toast.success(`${title} saved`);
+      resetForm();
+      loadResources();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save");
+    }
+  };
+
+  const deleteResource = async (resource: AdminResource) => {
+    if (!confirm(`Delete ${resource.title || title}?`)) return;
+    try {
+      await api(`/admin/resources/${type}/${resource.id}`, {
+        method: "DELETE",
+      });
+      toast.success(`${title} deleted`);
+      loadResources();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete");
+    }
+  };
+
+  const editResource = (resource: AdminResource) => {
+    setEditing(resource);
+    setEnabled(resource.enabled);
+    setForm(
+      Object.fromEntries(
+        Object.entries(resource.data || {}).map(([key, value]) => [
+          key,
+          String(value ?? ""),
+        ]),
+      ),
+    );
+  };
+
+  const handleUpload = async (key: string, file?: File) => {
+    if (!file) return;
+    try {
+      const url = await uploadImage(file);
+      setForm((prev) => ({ ...prev, [key]: url }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h2 className="text-2xl font-bold text-foreground">{title}</h2>
+        <Button type="button" variant="outline" onClick={resetForm}>
+          <Plus className="w-4 h-4 mr-2" /> Add New
+        </Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardContent className="p-4">
+          <form onSubmit={saveResource} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {fields.map((field) => (
+              <div key={field.key} className={field.kind === "textarea" ? "md:col-span-2" : ""}>
+                <Label>{field.label}</Label>
+                {field.kind === "textarea" ? (
+                  <Textarea
+                    value={form[field.key] || ""}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, [field.key]: e.target.value }))
+                    }
+                  />
+                ) : (
+                  <Input
+                    type={field.kind === "number" ? "number" : "text"}
+                    value={form[field.key] || ""}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, [field.key]: e.target.value }))
+                    }
+                  />
+                )}
+                {/(image|logo|icon|banner)$/i.test(field.key) && (
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    className="mt-2"
+                    onChange={(e) => handleUpload(field.key, e.target.files?.[0])}
+                  />
+                )}
+              </div>
+            ))}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(e) => setEnabled(e.target.checked)}
+                className="rounded border-2 w-4 h-4"
+              />
+              Enabled
+            </label>
+            <div className="md:col-span-2 flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Cancel
+              </Button>
+              <Button type="submit" className="btn-gradient">
+                {editing ? "Update" : "Add"} {title.replace(" Management", "")}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {loading ? (
+        <div className="grid gap-3">
+          {[1, 2, 3].map((item) => (
+            <div key={item} className="h-20 rounded-lg bg-card animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {resources.map((resource) => (
+            <Card key={resource.id} className="border-border/50">
+              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-foreground">
+                    {resource.title || "Untitled"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {resource.enabled ? "Enabled" : "Disabled"} · Order {resource.order || 0}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => editResource(resource)}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      await api(`/admin/resources/${type}/${resource.id}`, {
+                        method: "PUT",
+                        body: JSON.stringify({
+                          ...resource,
+                          enabled: !resource.enabled,
+                          data: resource.data || {},
+                        }),
+                      });
+                      loadResources();
+                    }}
+                  >
+                    {resource.enabled ? "Disable" : "Enable"}
+                  </Button>
+                  <Button type="button" size="sm" variant="destructive" onClick={() => deleteResource(resource)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {resources.length === 0 && (
+            <div className="text-center py-12 bg-card rounded-lg border border-dashed text-muted-foreground">
+              No records found
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OrderManagement() {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      const response = (await api("/admin/orders?limit=50")) as { orders: any[] };
+      setOrders(response.orders || []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load orders");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const updateStatus = async (id: string, status: string) => {
+    await api(`/admin/orders/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+    loadOrders();
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-foreground">Order Management</h2>
+      <div className="grid gap-3">
+        {loading ? (
+          <div className="h-24 bg-card rounded-lg animate-pulse" />
+        ) : (
+          orders.map((order) => (
+            <Card key={order.id} className="border-border/50">
+              <CardContent className="p-4 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4">
+                <div className="space-y-1 text-sm">
+                  <h3 className="font-semibold">Order #{order.id}</h3>
+                  <p>{order.user?.fullName || "Customer"} · {order.user?.phone || "-"}</p>
+                  <p className="text-muted-foreground">
+                    {(order.items || []).map((item: any) => item.product?.name).join(", ")}
+                  </p>
+                  <p className="font-semibold">₹{Number(order.total || 0).toLocaleString("en-IN")}</p>
+                </div>
+                <Select value={order.status} onValueChange={(value) => updateStatus(order.id, value)}>
+                  <SelectTrigger className="w-full lg:w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                    <SelectItem value="DELIVERED">Delivered</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CustomerManagement() {
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const loadCustomers = async () => {
+    try {
+      setLoading(true);
+      const response = (await api(`/admin/customers?limit=50&search=${encodeURIComponent(search)}`)) as {
+        customers: any[];
+      };
+      setCustomers(response.customers || []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load customers");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between gap-3">
+        <h2 className="text-2xl font-bold text-foreground">Customer Management</h2>
+        <div className="flex gap-2">
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customers..." />
+          <Button type="button" variant="outline" onClick={loadCustomers}>Search</Button>
+        </div>
+      </div>
+      <div className="grid gap-3">
+        {loading ? (
+          <div className="h-24 bg-card rounded-lg animate-pulse" />
+        ) : (
+          customers.map((customer) => (
+            <Card key={customer.id} className="border-border/50">
+              <CardContent className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold">{customer.fullName}</h3>
+                  <p className="text-sm text-muted-foreground">{customer.email} · {customer.phone}</p>
+                  <p className="text-sm">
+                    {customer.ordersCount} orders · ₹{Number(customer.totalPurchaseAmount || 0).toLocaleString("en-IN")}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    await api(`/admin/customers/${customer.id}/disable`, { method: "PATCH" });
+                    toast.success("Customer disable recorded");
+                  }}
+                >
+                  Disable Account
+                </Button>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CategoryManager() {
+  const { categories, fetchCategories, uploadImage } = useProducts();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [icon, setIcon] = useState("");
+  const [banner, setBanner] = useState("");
+
+  const reset = () => {
+    setEditingId(null);
+    setName("");
+    setDisplayName("");
+    setIcon("");
+    setBanner("");
+  };
+
+  const saveCategory = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!displayName.trim() && !name.trim()) {
+      toast.error("Category name is required");
+      return;
+    }
+
+    const payload = {
+      name: name || displayName,
+      displayName: displayName || name,
+      icon,
+      banner,
+    };
+
+    try {
+      if (editingId) {
+        await api(`/categories/${editingId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await api("/categories", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
+      toast.success("Category saved");
+      reset();
+      fetchCategories();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save category");
+    }
+  };
+
+  const uploadCategoryImage = async (field: "icon" | "banner", file?: File) => {
+    if (!file) return;
+    try {
+      const url = await uploadImage(file);
+      if (field === "icon") setIcon(url);
+      if (field === "banner") setBanner(url);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-foreground">Category Management</h2>
+      <Card className="border-border/50">
+        <CardContent className="p-4">
+          <form onSubmit={saveCategory} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Category Name</Label>
+              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            </div>
+            <div>
+              <Label>Category Code</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="MOBILE" />
+            </div>
+            <div>
+              <Label>Category Icon</Label>
+              <Input value={icon} onChange={(e) => setIcon(e.target.value)} />
+              <Input type="file" accept="image/*" className="mt-2" onChange={(e) => uploadCategoryImage("icon", e.target.files?.[0])} />
+            </div>
+            <div>
+              <Label>Category Banner</Label>
+              <Input value={banner} onChange={(e) => setBanner(e.target.value)} />
+              <Input type="file" accept="image/*" className="mt-2" onChange={(e) => uploadCategoryImage("banner", e.target.files?.[0])} />
+            </div>
+            <div className="md:col-span-2 flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={reset}>Cancel</Button>
+              <Button type="submit" className="btn-gradient">
+                {editingId ? "Update" : "Add"} Category
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+      <div className="grid gap-3">
+        {categories.map((category) => (
+          <Card key={category.id} className="border-border/50">
+            <CardContent className="p-4 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold">{category.displayName}</h3>
+                <p className="text-xs text-muted-foreground">{category.name}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingId(category.id);
+                    setName(category.name);
+                    setDisplayName(category.displayName);
+                  }}
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  onClick={async () => {
+                    if (!confirm("Delete this category?")) return;
+                    await api(`/categories/${category.id}`, { method: "DELETE" });
+                    fetchCategories();
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
+  const [activeSection, setActiveSection] = useState<AdminSectionId>("products");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarSearch, setSidebarSearch] = useState("");
+
+  const visibleSections = adminSections.filter((section) =>
+    section.label.toLowerCase().includes(sidebarSearch.toLowerCase()),
+  );
+
+  const renderSection = () => {
+    switch (activeSection) {
+      case "products":
+        return <ProductsManagement defaultIsUsed={false} />;
+      case "banners":
+        return (
+          <AdminResourceManager
+            type="banner"
+            title="Banner Management"
+            fields={[
+              { key: "title", label: "Banner Title" },
+              { key: "subtitle", label: "Subtitle" },
+              { key: "buttonText", label: "Button Text" },
+              { key: "buttonLink", label: "Button Link" },
+              { key: "bannerImage", label: "Banner Image" },
+              { key: "order", label: "Banner Order", kind: "number" },
+            ]}
+          />
+        );
+      case "brands":
+        return (
+          <AdminResourceManager
+            type="brand"
+            title="Brand Management"
+            fields={[
+              { key: "name", label: "Brand Name" },
+              { key: "logo", label: "Brand Logo" },
+              { key: "description", label: "Brand Description", kind: "textarea" },
+            ]}
+          />
+        );
+      case "categories":
+        return <CategoryManager />;
+      case "feature-icons":
+        return (
+          <AdminResourceManager
+            type="feature-icon"
+            title="Feature Icon Management"
+            fields={[
+              { key: "name", label: "Icon Name" },
+              { key: "icon", label: "Icon Upload" },
+            ]}
+          />
+        );
+      case "deals":
+        return (
+          <AdminResourceManager
+            type="deal"
+            title="Deals Management"
+            fields={[
+              { key: "title", label: "Title" },
+              { key: "discount", label: "Discount %", kind: "number" },
+              { key: "banner", label: "Banner" },
+              { key: "productSelection", label: "Product Selection", kind: "textarea" },
+            ]}
+          />
+        );
+      case "popups":
+        return (
+          <AdminResourceManager
+            type="popup"
+            title="Popup Management"
+            fields={[
+              { key: "title", label: "Title" },
+              { key: "description", label: "Description", kind: "textarea" },
+              { key: "image", label: "Image" },
+              { key: "buttonText", label: "Button Text" },
+              { key: "buttonLink", label: "Button Link" },
+              { key: "displayDelay", label: "Display Delay", kind: "number" },
+            ]}
+          />
+        );
+      case "orders":
+        return <OrderManagement />;
+      case "customers":
+        return <CustomerManagement />;
+      default:
+        return <ProductsManagement defaultIsUsed={false} />;
+    }
+  };
+
   return (
     <ProductProvider>
       <div className="min-h-screen bg-secondary">
@@ -2749,83 +4225,72 @@ export default function Admin() {
                 Manage your products, offers, services, and website content
               </p>
             </motion.div>
+            <div className="lg:hidden mb-4">
+              <Button type="button" variant="outline" onClick={() => setMobileSidebarOpen(true)}>
+                <Menu className="w-4 h-4 mr-2" /> Menu
+              </Button>
+            </div>
 
-            <Tabs defaultValue="products" className="space-y-6">
-              <div className="w-full overflow-x-auto scrollbar-hide bg-card p-1 rounded-xl border border-border/50">
-                <TabsList className="flex w-max min-w-full h-auto bg-transparent gap-1 p-0">
-                  <TabsTrigger
-                    value="products"
-                    className="flex items-center gap-1 text-[10px] sm:text-xs"
-                  >
-                    <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Products
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="used-phones"
-                    className="flex items-center gap-1 text-[10px] sm:text-xs"
-                  >
-                    <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Used Phones
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="offers"
-                    className="flex items-center gap-1 text-[10px] sm:text-xs"
-                  >
-                    <Tag className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Offers
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="services"
-                    className="flex items-center gap-1 text-[10px] sm:text-xs"
-                  >
-                    <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Services
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="hero"
-                    className="flex items-center gap-1 text-[10px] sm:text-xs"
-                  >
-                    <ImageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Hero
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="gallery"
-                    className="flex items-center gap-1 text-[10px] sm:text-xs"
-                  >
-                    <Images className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Gallery
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="technicians"
-                    className="flex items-center gap-1 text-[10px] sm:text-xs"
-                  >
-                    <UsersIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Technicians
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              <TabsContent value="products">
-                <ProductsManagement defaultIsUsed={false} />
-              </TabsContent>
-
-              <TabsContent value="used-phones">
-                <ProductsManagement defaultIsUsed={true} />
-              </TabsContent>
-
-              <TabsContent value="offers">
-                <OffersSettings />
-              </TabsContent>
-
-              <TabsContent value="services">
-                <ServicesSettings />
-              </TabsContent>
-
-              <TabsContent value="hero">
-                <HeroSettings />
-              </TabsContent>
-
-              <TabsContent value="gallery">
-                <GallerySettings />
-              </TabsContent>
-
-              <TabsContent value="technicians">
-                <TechniciansManagement />
-              </TabsContent>
-            </Tabs>
+            <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6">
+              <aside
+                className={`${
+                  mobileSidebarOpen ? "fixed inset-0 z-50 p-4 bg-foreground/50" : "hidden"
+                } lg:block lg:sticky lg:top-28 lg:self-start`}
+              >
+                <div
+                  className={`bg-card border border-border/50 rounded-xl p-3 transition-all duration-300 ${
+                    sidebarCollapsed ? "lg:w-20" : "lg:w-72"
+                  } ${mobileSidebarOpen ? "w-full max-w-sm" : ""}`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    {!sidebarCollapsed && (
+                      <Input
+                        value={sidebarSearch}
+                        onChange={(e) => setSidebarSearch(e.target.value)}
+                        placeholder="Search menu..."
+                      />
+                    )}
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      onClick={() =>
+                        window.innerWidth < 1024
+                          ? setMobileSidebarOpen(false)
+                          : setSidebarCollapsed((prev) => !prev)
+                      }
+                    >
+                      <PanelLeftClose className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-1">
+                    {visibleSections.map((section) => {
+                      const Icon = section.icon;
+                      const active = activeSection === section.id;
+                      return (
+                        <button
+                          key={section.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveSection(section.id);
+                            setMobileSidebarOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all ${
+                            active
+                              ? "bg-primary text-primary-foreground"
+                              : "text-foreground hover:bg-secondary"
+                          }`}
+                        >
+                          <Icon className="w-4 h-4 flex-shrink-0" />
+                          {!sidebarCollapsed && <span>{section.label}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </aside>
+              <section className="min-w-0">{renderSection()}</section>
+            </div>
           </div>
         </main>
 

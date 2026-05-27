@@ -31,6 +31,7 @@ const contentRoutes = require("./routes/content"); // ✅ NEW
 const assetRoutes = require("./routes/assets");
 const publicAssetRoutes = require("./routes/publicAssets"); // Public asset routes
 const technicianRoutes = require("./routes/technicians"); // Technicians routes
+const adminResourceRoutes = require("./routes/adminResources");
 console.log("[server] contentRoutes imported, typeof =", typeof contentRoutes);
 const prisma = require("./utils/prisma");
 const { ensureAdminExists } = require("./utils/ensureAdmin");
@@ -76,6 +77,15 @@ const allowedOrigins = [
   process.env.FRONTEND_ORIGIN,
 ].filter(Boolean);
 
+const isAllowedLocalOrigin = (origin) => {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+};
+
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -83,7 +93,9 @@ app.use(
       if (!origin) return callback(null, true);
 
       // Check if origin is in allowed list
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (allowedOrigins.includes(origin) || isAllowedLocalOrigin(origin)) {
+        return callback(null, true);
+      }
 
       // Allow any Vercel deployment (preview deployments)
       if (origin.includes("vercel.app")) return callback(null, true);
@@ -139,6 +151,7 @@ app.use("/api/content", contentRoutes); // ✅ NEW CONTENT API
 app.use("/api/admin", assetRoutes);
 app.use("/api", publicAssetRoutes); // Public asset routes (GET only)
 app.use("/api/technicians", technicianRoutes); // Technicians API
+app.use("/api/admin/resources", adminResourceRoutes);
 const notificationsRoutes = require("./routes/notifications");
 console.log(
   "[server] notificationsRoutes imported (inline), typeof =",

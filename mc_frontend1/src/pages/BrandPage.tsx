@@ -21,7 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { FilterPanel } from "@/components/filtering/FilterPanel";
 import { extractFilterOptions, filterProducts } from "@/utils/filterUtils";
 import { ProductListHeader } from "@/components/ProductListHeader";
-import { groupProductsByName } from "@/utils/productVariants";
 
 // Brand aliases for matching
 const brandAliases = {
@@ -164,10 +163,8 @@ export default function BrandPage() {
     return result;
   }, [brandBaseProducts, filters, searchQuery]);
 
-  const groupedProducts = useMemo(
-    () => groupProductsByName(filteredProducts),
-    [filteredProducts],
-  );
+  // Show all generated variant products (do not group by family)
+  const flatProducts = useMemo(() => filteredProducts, [filteredProducts]);
 
   const handleAddToCart = (product: Product) => {
     addToCart({
@@ -268,7 +265,7 @@ export default function BrandPage() {
                     : "Selected Brand Products"}
               </h1>
               <p className="text-muted-foreground">
-                {groupedProducts.length} products available
+                {flatProducts.length} products available
               </p>
             </div>
           </motion.div>
@@ -283,15 +280,15 @@ export default function BrandPage() {
 
           {/* Products Grid */}
           <div className="grid grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2">
-            {groupedProducts.map((product, index) => (
+            {flatProducts.map((product, index) => (
               <motion.div
-                key={product.groupId}
+                key={product.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
                 onClick={() =>
                   navigate(
-                    `/product/${String(product.category).toLowerCase() === "mobile" ? "new" : "accessory"}/${product.groupId}`,
+                    `/product/${String(product.category).toLowerCase() === "mobile" ? "new" : "accessory"}/${product.id}`,
                   )
                 }
                 className="cursor-pointer group h-full"

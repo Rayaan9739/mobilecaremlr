@@ -55,11 +55,45 @@ const resetPasswordByIdSchema = Joi.object({
 
 const productSchema = Joi.object({
   name: Joi.string().min(1).max(200).required(),
-  description: Joi.string().max(1000),
+  brand: Joi.string().min(1).max(100).required(),
+  description: Joi.string().allow("").max(50000),
   price: Joi.number().positive().required(),
   stock: Joi.number().integer().min(0).required(),
   category: Joi.string().min(1).max(50).required(),
-});
+  isWeeklyTrending: Joi.boolean().optional().default(false),
+  isFeatured: Joi.boolean().optional().default(false),
+  isNew: Joi.boolean().optional().default(false),
+  isNewArrival: Joi.boolean().optional().default(false),
+  rating: Joi.number().min(0).max(5).optional(),
+  ratingsCount: Joi.number().integer().min(0).optional(),
+  reviewsCount: Joi.number().integer().min(0).optional(),
+  reviewCount: Joi.number().integer().min(0).optional(),
+  images: Joi.array().items(Joi.string().allow("")).optional(),
+  colorVariants: Joi.array().optional(),
+  colors: Joi.array()
+    .items(
+      Joi.object({
+        name: Joi.string().min(1).required(),
+        dotImage: Joi.string().allow("").optional(),
+        image: Joi.string().allow("").optional(),
+        hex: Joi.string().allow("").optional(),
+        images: Joi.array().items(Joi.string().allow("")).default([]),
+        storageVariants: Joi.array()
+          .items(
+            Joi.object({
+              storage: Joi.string().min(1).required(),
+              originalPrice: Joi.number().min(0).required(),
+              sellingPrice: Joi.number().min(0).required(),
+              discount: Joi.number().min(0).optional(),
+              inStock: Joi.boolean().optional(),
+              stock: Joi.alternatives().try(Joi.boolean(), Joi.number()).optional(),
+            }),
+          )
+          .default([]),
+      }),
+    )
+    .optional(),
+}).unknown(true);
 
 const orderSchema = Joi.object({
   items: Joi.array()

@@ -4,6 +4,7 @@ import { Categories } from "@/components/Categories";
 import { BrandCarousel } from "@/components/BrandCarousel";
 import { ServicesPromo } from "@/components/ServicesPromo";
 import { PopularProducts } from "@/components/PopularProducts";
+import { WeeklyTrendingProducts } from "@/components/WeeklyTrendingProducts";
 import { UsedPhones } from "@/components/UsedPhones";
 import { Gallery } from "@/components/Gallery";
 import { Stats } from "@/components/Stats";
@@ -57,6 +58,7 @@ const Index = () => {
       <Header />
       <main className="overflow-x-hidden w-full max-w-full">
         <Hero />
+        <WeeklyTrendingProducts />
         <div className="pt-24">
           <Categories />
         </div>

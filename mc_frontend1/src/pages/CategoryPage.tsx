@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { FilterPanel } from "@/components/filtering/FilterPanel";
 import { extractFilterOptions, filterProducts } from "@/utils/filterUtils";
 import { ProductListHeader } from "@/components/ProductListHeader";
-import { groupProductsByName } from "@/utils/productVariants";
+
 
 export default function CategoryPage() {
   const { categoryName } = useParams();
@@ -141,10 +141,8 @@ export default function CategoryPage() {
     return result;
   }, [activeContext, filters, products, searchQuery]);
 
-  const groupedProducts = useMemo(
-    () => groupProductsByName(filteredProducts),
-    [filteredProducts],
-  );
+  // Show all generated variant products (do not group by family)
+  const flatProducts = useMemo(() => filteredProducts, [filteredProducts]);
 
   const filterOptions = useMemo(() => {
     const enforcedCategoryValue =
@@ -202,7 +200,7 @@ export default function CategoryPage() {
               {hasManualFilters ? "All Products" : activeContext.label}
             </h1>
             <p className="text-muted-foreground">
-              {groupedProducts.length} products available
+              {flatProducts.length} products available
             </p>
           </motion.div>
 
@@ -216,15 +214,15 @@ export default function CategoryPage() {
 
           <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
             <div className="grid grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2">
-            {groupedProducts.map((product, index) => (
+            {flatProducts.map((product, index) => (
               <motion.div
-                key={product.groupId}
+                key={product.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.05 }}
                 onClick={() =>
                   navigate(
-                    `/product/${normalizeCategoryValue(product.category) === "mobile" ? "new" : "accessory"}/${product.groupId}`,
+                    `/product/${normalizeCategoryValue(product.category) === "mobile" ? "new" : "accessory"}/${product.id}`,
                   )
                 }
                 className="cursor-pointer group h-full"

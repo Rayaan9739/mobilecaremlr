@@ -654,6 +654,7 @@ function ProductCard({
     const activeVariant = phone.variants[0];
     addToCart({
       id: activeVariant?.variantId || phone.groupId,
+      productId: activeVariant?.product.id || phone.groupId,
       name: phone.name,
       price: activeVariant?.price || phone.minPrice,
       image: activeVariant?.image || phone.image,

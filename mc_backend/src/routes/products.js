@@ -1,5 +1,5 @@
 const express = require('express');
-const { getProducts, getProduct, getCategories, createProduct, updateProduct, deleteProduct } = require('../controllers/productController');
+const { getProducts, getProduct, getFamilyProducts, getCategories, createProduct, updateProduct, deleteProduct } = require('../controllers/productController');
 const { adminAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -7,6 +7,7 @@ const router = express.Router();
 // Public routes
 router.get('/', getProducts);
 router.get('/categories/list', getCategories);
+router.get('/family/:familyId', getFamilyProducts);
 router.get('/:id', getProduct);
 
 // Admin routes

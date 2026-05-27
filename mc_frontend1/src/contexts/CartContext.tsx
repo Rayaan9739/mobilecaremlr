@@ -8,6 +8,7 @@ import {
 
 interface CartProduct {
   id: string | number;
+  productId?: string | number;
   name: string;
   price: number;
   image?: string;

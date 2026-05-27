@@ -88,14 +88,19 @@ export const UsedPhones = () => {
                     : { opacity: 0, scale: 0.9 }
                 }
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="relative w-full group"
+                className="relative w-full group aspect-square"
               >
                 <button
                   type="button"
                   onClick={() => navigate(`/used-phones/${product.id}`)}
-                  className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-elevated transition-all p-2 sm:p-3 cursor-pointer border border-border/50 flex flex-col w-full h-[220px] sm:h-[240px]"
+                  className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-elevated transition-all p-2 sm:p-3 cursor-pointer border border-border/50 flex flex-col w-full h-full"
                 >
-                  <div className="flex items-center justify-center overflow-hidden relative bg-secondary/30 rounded-xl w-full h-[120px] sm:h-[130px]">
+                  <div className="w-full aspect-square rounded-xl overflow-hidden relative bg-secondary/30">
+                    {product.discount && product.originalPrice && product.originalPrice > product.price && (
+                      <div className="absolute top-2 right-2 z-30 bg-emerald-600/90 text-white text-[9px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded">
+                        {Math.round((product.discount))}% OFF
+                      </div>
+                    )}
                     {product.rating ? (
                       <div className="absolute top-2 left-2 z-30 bg-black/60 backdrop-blur-sm text-white text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded flex items-center gap-0.5 sm:gap-1">
                         <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-yellow-400 text-yellow-400" />
@@ -108,7 +113,7 @@ export const UsedPhones = () => {
                         "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400"
                       }
                       alt={product.name}
-                      className="w-full h-full object-contain transition-all duration-200"
+                      className="w-full h-full object-contain transition-all duration-200 group-hover:scale-105"
                       onError={(e) => {
                         e.currentTarget.src =
                           "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
@@ -117,26 +122,41 @@ export const UsedPhones = () => {
                     />
                   </div>
 
-                  <div className="flex-1 flex flex-col justify-between mt-3 sm:mt-4">
+                  <div className="flex-1 flex flex-col justify-between mt-2 sm:mt-3">
                     <div>
                       <h3 className="text-xs sm:text-base font-bold text-foreground mb-1 line-clamp-2">
                         {product.name}
                       </h3>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-2">
-                      {product.discount &&
-                        product.originalPrice &&
-                        product.originalPrice > product.price && (
-                          <span className="text-xs sm:text-sm text-muted-foreground line-through">
-                            ₹
-                            {Math.round(product.originalPrice).toLocaleString(
-                              "en-IN",
-                            )}
-                          </span>
-                        )}
-                      <span className="text-sm sm:text-lg font-black text-primary">
-                        ₹{product.price.toLocaleString()}
-                      </span>
+                    <div className="flex flex-col gap-0.5 sm:gap-1">
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        {product.discount &&
+                          product.originalPrice &&
+                          product.originalPrice > product.price && (
+                            <span className="text-xs sm:text-sm text-muted-foreground line-through">
+                              ₹
+                              {Math.round(product.originalPrice).toLocaleString(
+                                "en-IN",
+                              )}
+                            </span>
+                          )}
+                        <span className="text-sm sm:text-lg font-black text-primary">
+                          ₹{product.price.toLocaleString()}
+                        </span>
+                      </div>
+                      {product.ratingsCount ? (
+                        <span className="text-[10px] sm:text-xs text-muted-foreground">
+                          ({product.ratingsCount} reviews)
+                        </span>
+                      ) : product.reviewCount ? (
+                        <span className="text-[10px] sm:text-xs text-muted-foreground">
+                          ({product.reviewCount} reviews)
+                        </span>
+                      ) : product.reviewsCount ? (
+                        <span className="text-[10px] sm:text-xs text-muted-foreground">
+                          ({product.reviewsCount} reviews)
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </button>

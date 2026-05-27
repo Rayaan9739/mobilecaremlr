@@ -413,17 +413,14 @@ export default function Products() {
               {Array.from({ length: 8 }, (_, i) => i + 1).map((id) => (
                 <Card
                   key={`skeleton-${id}`}
-                  className="border-border w-full overflow-hidden"
+                  className="border-border w-full aspect-square overflow-hidden"
                 >
-                  <CardContent className="p-0">
-                    <div className="relative">
-                      <div className="aspect-square overflow-hidden bg-secondary rounded-t-xl animate-pulse"></div>
-                      <div className="p-3">
-                        <div className="h-4 bg-secondary rounded mb-2 animate-pulse"></div>
-                        <div className="h-3 bg-secondary rounded mb-2 animate-pulse"></div>
-                        <div className="h-4 bg-secondary rounded mb-3 animate-pulse"></div>
-                        <div className="h-8 bg-secondary rounded animate-pulse"></div>
-                      </div>
+                  <CardContent className="p-0 flex flex-col h-full">
+                    <div className="w-full aspect-square bg-secondary rounded-t-xl animate-pulse"></div>
+                    <div className="p-2 sm:p-3 flex-1 flex flex-col justify-between">
+                      <div className="h-4 bg-secondary rounded mb-1 animate-pulse"></div>
+                      <div className="h-3 bg-secondary rounded mb-1 animate-pulse"></div>
+                      <div className="h-5 bg-secondary rounded animate-pulse"></div>
                     </div>
                   </CardContent>
                 </Card>
@@ -442,11 +439,16 @@ export default function Products() {
                       `/product/${normalizeCategoryValue(product.category) === "mobile" ? "new" : "accessory"}/${product.groupId}`,
                     )
                   }
-                  className="cursor-pointer group h-full"
+                  className="cursor-pointer group aspect-square"
                 >
-                  <Card className="border-border hover:border-primary/50 transition-all duration-300 hover:shadow-elevated h-[220px] sm:h-[240px] flex flex-col w-full overflow-hidden">
+                  <Card className="border-border hover:border-primary/50 transition-all duration-300 hover:shadow-elevated flex flex-col w-full h-full overflow-hidden">
                     <CardContent className="p-0 flex flex-col h-full">
-                      <div className="relative overflow-hidden bg-secondary rounded-t-sm sm:rounded-t-xl h-[120px] sm:h-[130px]">
+                      <div className="w-full aspect-square rounded-t-sm sm:rounded-t-xl overflow-hidden relative bg-secondary">
+                        {product.discount && product.originalPrice && product.originalPrice > product.minPrice && (
+                          <div className="absolute top-2 right-2 z-30 bg-emerald-600/90 text-white text-[9px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded">
+                            {Math.round((product.discount))}% OFF
+                          </div>
+                        )}
                         {product.rating ? (
                           <div className="absolute top-0.5 left-0.5 sm:top-3 sm:left-3 z-30 bg-black/60 backdrop-blur-sm text-white text-[6px] sm:text-xs font-bold px-1 py-0.5 rounded flex items-center gap-0.5">
                             <Star className="w-1.5 h-1.5 sm:w-3 sm:h-3 fill-yellow-400 text-yellow-400" />
@@ -471,23 +473,30 @@ export default function Products() {
                           </h3>
                         </div>
 
-                        <div className="text-[8px] text-muted-foreground mb-1 line-clamp-1">
-                          {product.colorOptions.slice(0, 3).join(" • ")}
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
-                          {product.discount &&
-                            product.originalPrice &&
-                            product.originalPrice > product.minPrice && (
-                              <span className="text-muted-foreground text-[6px] sm:text-xs line-through">
-                                ₹
-                                {Math.round(
-                                  product.originalPrice,
-                                ).toLocaleString("en-IN")}
-                              </span>
-                            )}
-                          <span className="text-foreground font-black text-[9px] sm:text-sm">
-                            ₹{product.minPrice.toLocaleString()}
+                        <div className="flex flex-col gap-0.5 sm:gap-1">
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            {product.discount &&
+                              product.originalPrice &&
+                              product.originalPrice > product.minPrice && (
+                                <span className="text-muted-foreground text-[6px] sm:text-xs line-through">
+                                  ₹
+                                  {Math.round(
+                                    product.originalPrice,
+                                  ).toLocaleString("en-IN")}
+                                </span>
+                              )}
+                            <span className="text-foreground font-black text-[9px] sm:text-sm">
+                              ₹{product.minPrice.toLocaleString()}
+                            </span>
+                          </div>
+                          <span className="text-[8px] sm:text-xs text-muted-foreground">
+                            {product.colorOptions.slice(0, 3).join(" • ")}
                           </span>
+                          {product.ratingsCount || product.reviewsCount ? (
+                            <span className="text-[8px] sm:text-xs text-muted-foreground">
+                              ({product.ratingsCount || product.reviewsCount} reviews)
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </CardContent>

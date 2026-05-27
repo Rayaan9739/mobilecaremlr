@@ -16,8 +16,28 @@ export interface Category {
   displayName: string;
 }
 
+export interface ProductStorageVariant {
+  storage: string;
+  originalPrice?: number;
+  sellingPrice?: number;
+  price?: number;
+  discount?: number;
+  inStock?: boolean;
+  stock?: boolean | number;
+}
+
+export interface ProductColorVariant {
+  name: string;
+  hex?: string;
+  dotImage?: string;
+  image?: string;
+  images?: string[];
+  storageVariants?: ProductStorageVariant[];
+}
+
 export interface Product {
   id: string;
+  familyId?: string;
   name: string;
   brand: string;
   category: string;
@@ -27,15 +47,26 @@ export interface Product {
   stock: number;
   status?: 'In Stock' | 'Out of Stock';
   rating?: number;
+  ratingsCount?: number;
+  reviewsCount?: number;
+  reviewCount?: number;
   image: string;
   images: string[];
   highlights: string[];
-  colorVariants: {name: string, hex: string, image: string}[];
+  colors?: ProductColorVariant[];
+  colorVariants: ProductColorVariant[];
   isBestSeller?: boolean;
   isFeatured?: boolean;
   isNew?: boolean;
+  isNewArrival?: boolean;
+  isWeeklyTrending?: boolean;
   isUsed?: boolean;
+  colorName?: string;
+  colorHex?: string;
+  storageOption?: string;
+  baseProductId?: string;
   description?: string;
+  specs?: Record<string, unknown>;
   totalSales?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -176,19 +207,18 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       setError(null);
       
       const productData = {
-        name: data.name,
-        brand: data.brand,
-        category: data.category,
-        price: data.price,
-        stock: data.stock,
+        ...data,
         description: data.description || "",
         highlights: data.highlights || [],
+        colors: data.colors || data.colorVariants || [],
         colorVariants: data.colorVariants || [],
         isBestSeller: data.isBestSeller || false,
         isFeatured: data.isFeatured || false,
         isNew: data.isNew || false,
+        isNewArrival: data.isNewArrival || data.isNew || false,
+        isWeeklyTrending: data.isWeeklyTrending || false,
         isUsed: data.isUsed || false,
-        images: data.images || []
+        images: data.images || [],
       };
 
       await api("/products", {

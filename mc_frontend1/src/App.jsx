@@ -18,6 +18,7 @@ import Phones from "./pages/Phones";
 import ProductDetail from "./pages/ProductDetail";
 import Admin from "./pages/Admin";
 import AdminNotifications from "./pages/AdminNotifications";
+import AdminAddProduct from "./pages/AdminAddProduct";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
@@ -85,6 +86,14 @@ function AppContent() {
           element={
             <ProtectedRoute requiredRole="admin">
               <Admin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/add-product"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminAddProduct />
             </ProtectedRoute>
           }
         />
