@@ -1,16 +1,68 @@
 import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAdmin } from "@/contexts/AdminContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { useNavigate } from "react-router-dom";
+import { fetchPublicResources, PublicResource } from "@/lib/publicResources";
+
+type DisplayOffer = {
+  id: string | number;
+  title: string;
+  subtitle: string;
+  description: string;
+  tagline: string;
+  image: string;
+  endDate: string;
+};
+
+const formatPopupEndDate = (value: unknown) => {
+  const text = String(value || "");
+  return text ? text.slice(0, 10) : "Available now";
+};
 
 export default function Offers() {
   const { offers } = useAdmin();
   const navigate = useNavigate();
+  const [popupOfferResources, setPopupOfferResources] = useState<PublicResource[]>([]);
   const fallbackOfferImage =
     "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&h=300&fit=crop";
+
+  useEffect(() => {
+    const loadPopupOffers = async () => {
+      try {
+        const resources = await fetchPublicResources("popup");
+        setPopupOfferResources(
+          resources.filter(
+            (item) =>
+              item.enabled &&
+              Array.isArray(item.data?.offerProducts) &&
+              item.data.offerProducts.length > 0,
+          ),
+        );
+      } catch (error) {
+        console.error("Failed to load popup offers:", error);
+      }
+    };
+
+    loadPopupOffers();
+  }, []);
+
+  const displayOffers = useMemo<DisplayOffer[]>(() => {
+    const popupOffers = popupOfferResources.map((item) => ({
+      id: item.id,
+      title: item.title || String(item.data?.title || "Special Offer"),
+      subtitle: "Limited Time Offer",
+      description: String(item.data?.message || "Selected products at offer prices"),
+      tagline: String(item.data?.message || "Tap to view offer products"),
+      image: String(item.data?.image || ""),
+      endDate: formatPopupEndDate(item.data?.scheduledTime),
+    }));
+
+    return [...popupOffers, ...offers];
+  }, [offers, popupOfferResources]);
 
   return (
     <div className="min-h-screen bg-secondary">
@@ -34,9 +86,9 @@ export default function Offers() {
 
           {/* Offers Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {offers.map((offer, index) => (
+            {displayOffers.map((offer, index) => (
               <motion.div
-                key={offer.id}
+                key={String(offer.id)}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -94,7 +146,7 @@ export default function Offers() {
           </div>
 
           {/* No offers message */}
-          {offers.length === 0 && (
+          {displayOffers.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ChevronRight, Star } from "lucide-react";
@@ -13,6 +13,29 @@ import { useRepairBooking } from "@/contexts/RepairBookingContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { isValidPhoneNumber, toNormalizedPhoneNumber } from "@/lib/phone";
 import { toast } from "sonner";
+import { fetchPublicResources, PublicResource } from "@/lib/publicResources";
+
+type OfferProductEntry = {
+  productId: string;
+  offerPrice: number;
+  text?: string;
+};
+
+type DisplayOffer = {
+  id: string | number;
+  title: string;
+  subtitle: string;
+  description: string;
+  tagline: string;
+  image: string;
+  endDate: string;
+  products: OfferProductEntry[];
+};
+
+const formatPopupEndDate = (value: unknown) => {
+  const text = String(value || "");
+  return text ? text.slice(0, 10) : "Available now";
+};
 
 export default function OfferDetail() {
   const { id } = useParams();
@@ -22,9 +45,54 @@ export default function OfferDetail() {
   const { addToCart } = useCart();
   const { addOrderNotification } = useRepairBooking();
   const { user } = useAuth();
+  const [popupOfferResources, setPopupOfferResources] = useState<PublicResource[]>([]);
 
-  const offerId = Number(id);
-  const offer = offers.find((o) => o.id === offerId);
+  useEffect(() => {
+    const loadPopupOffers = async () => {
+      try {
+        const resources = await fetchPublicResources("popup");
+        setPopupOfferResources(
+          resources.filter(
+            (item) =>
+              item.enabled &&
+              Array.isArray(item.data?.offerProducts) &&
+              item.data.offerProducts.length > 0,
+          ),
+        );
+      } catch (error) {
+        console.error("Failed to load popup offers:", error);
+      }
+    };
+
+    loadPopupOffers();
+  }, []);
+
+  const popupOffers = useMemo<DisplayOffer[]>(
+    () =>
+      popupOfferResources.map((item) => ({
+        id: item.id,
+        title: item.title || String(item.data?.title || "Special Offer"),
+        subtitle: "Limited Time Offer",
+        description: String(item.data?.message || "Selected products at offer prices"),
+        tagline: String(item.data?.message || "Tap to view offer products"),
+        image: String(item.data?.image || ""),
+        endDate: formatPopupEndDate(item.data?.scheduledTime),
+        products: Array.isArray(item.data?.offerProducts)
+          ? (item.data.offerProducts as OfferProductEntry[])
+          : [],
+      })),
+    [popupOfferResources],
+  );
+
+  const adminOffers: DisplayOffer[] = offers.map((offer) => ({
+    ...offer,
+    products: offer.products.map((product) => ({
+      productId: product.productId,
+      offerPrice: product.offerPrice,
+    })),
+  }));
+
+  const offer = [...popupOffers, ...adminOffers].find((o) => String(o.id) === String(id));
 
   const offerProducts = useMemo(() => {
     if (!offer) return [];
@@ -34,17 +102,43 @@ export default function OfferDetail() {
       .map((op) => {
         const p = byId.get(String(op.productId));
         if (!p) return null;
-        return { product: p, offerPrice: op.offerPrice };
+        return { product: p, offerPrice: op.offerPrice, text: op.text || "" };
       })
-      .filter(Boolean) as { product: any; offerPrice: number }[];
+      .filter(Boolean) as { product: any; offerPrice: number; text: string }[];
   }, [offer, products]);
 
-  const handleBookOfferProduct = (product: any, offerPrice: number) => {
+  const handleBookOfferProduct = (product: any, offerPrice: number, text = "") => {
     const userPhone = user?.phone || "";
     if (!isValidPhoneNumber(userPhone)) {
       toast.error("Please enter a valid phone number");
       return;
     }
+
+    const formattedOfferPrice = `₹${Number(offerPrice || 0).toLocaleString("en-IN")}`;
+    if (!window.confirm(`Book ${product.name} for ${formattedOfferPrice}?`)) {
+      return;
+    }
+
+    addToCart(
+      {
+        id: product.id,
+        productId: product.id,
+        name: product.name,
+        price: offerPrice,
+        image: product.image,
+        brand: product.brand,
+        category: product.category,
+        offerId: offer?.id,
+        offerTitle: offer?.title,
+        offerPrice,
+        offerText: text,
+        originalPrice: product.price,
+      } as any,
+      1,
+    );
+    navigate("/cart", { state: { autoBookNow: true } });
+    return;
+
     addOrderNotification({
       name: user?.fullName || "Customer",
       mobileNumber: toNormalizedPhoneNumber(userPhone),
@@ -141,7 +235,7 @@ export default function OfferDetail() {
             </div>
           ) : (
             <div className="grid grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2">
-              {offerProducts.map(({ product, offerPrice }, index) => (
+              {offerProducts.map(({ product, offerPrice, text }, index) => (
                 <motion.div
                   key={product.id}
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -174,21 +268,26 @@ export default function OfferDetail() {
                           <h3 className="font-bold text-foreground text-[8px] sm:text-sm line-clamp-2 mb-1 min-h-[20px] sm:min-h-0">
                             {product.name}
                           </h3>
+                          {text ? (
+                            <p className="line-clamp-1 text-[7px] text-primary sm:text-xs">
+                              {text}
+                            </p>
+                          ) : null}
                         </div>
 
                         <div className="flex flex-col gap-1">
                           <div className="flex items-baseline gap-2">
                             <span className="text-foreground font-black text-[9px] sm:text-sm">
-                              â‚¹{Number(offerPrice).toLocaleString("en-IN")}
+                              ₹{Number(offerPrice).toLocaleString("en-IN")}
                             </span>
                             <span className="text-muted-foreground text-[6px] sm:text-xs line-through">
-                              â‚¹{Number(product.price).toLocaleString("en-IN")}
+                              ₹{Number(product.price).toLocaleString("en-IN")}
                             </span>
                           </div>
                           <Button
                             type="button"
                             onClick={() =>
-                              handleBookOfferProduct(product, offerPrice)
+                              handleBookOfferProduct(product, offerPrice, text)
                             }
                             className="h-7 sm:h-8 text-[10px] sm:text-xs rounded-full btn-gradient"
                           >

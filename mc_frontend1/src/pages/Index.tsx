@@ -62,7 +62,17 @@ const Index = () => {
         <div className="pt-24">
           <Categories />
         </div>
-        <BrandCarousel />
+        <section className="py-10 bg-secondary/40">
+          <div className="container mx-auto px-4">
+            <div className="mb-6 flex items-center gap-4">
+              <h2 className="text-2xl font-semibold text-foreground tracking-tight">
+                Shop by Brand
+              </h2>
+              <div className="hidden h-px max-w-[120px] flex-1 bg-border md:block" />
+            </div>
+            <BrandCarousel />
+          </div>
+        </section>
         <ServicesPromo />
         <PopularProducts />
         <UsedPhones />

@@ -4,8 +4,16 @@ import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useProducts } from "@/contexts/ProductContext";
+import { fetchPublicResources } from "@/lib/publicResources";
 
-const slides = [
+const slides: Array<{
+  id: number;
+  heading: string;
+  subtext: string;
+  image: string;
+  cta: string;
+  link?: string;
+}> = [
   {
     id: 1,
     heading: "Latest Smartphones & Accessories",
@@ -43,24 +51,53 @@ const slides = [
 export function MobilesHero() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [savedSlides, setSavedSlides] = useState(slides);
   const navigate = useNavigate();
   const { clearFilters } = useProducts();
+  const activeSlides = savedSlides.length > 0 ? savedSlides : slides;
+
+  useEffect(() => {
+    const loadSavedBanners = async () => {
+      try {
+        const resources = await fetchPublicResources("banner");
+        const banners = resources
+          .filter((item) => item.data?.bannerType !== "hero")
+          .map((item, index) => ({
+            id: index + 1,
+            heading: String(item.title || item.data?.title || "Mobile Care"),
+            subtext: String(item.data?.subtitle || ""),
+            image: String(item.data?.image || slides[index % slides.length].image),
+            cta: String(item.data?.buttonText || "Shop Now"),
+            link: String(item.data?.buttonLink || "/all-products"),
+          }));
+
+        if (banners.length > 0) {
+          setSavedSlides(banners);
+          setCurrentSlide(0);
+        }
+      } catch (error) {
+        console.error("Failed to load mobile banners:", error);
+      }
+    };
+
+    loadSavedBanners();
+  }, []);
 
   useEffect(() => {
     if (!isHovered) {
       const interval = setInterval(() => {
-        setCurrentSlide((prev) => (prev + 1) % slides.length);
+        setCurrentSlide((prev) => (prev + 1) % activeSlides.length);
       }, 3500);
       return () => clearInterval(interval);
     }
-  }, [isHovered]);
+  }, [activeSlides.length, isHovered]);
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
+    setCurrentSlide((prev) => (prev + 1) % activeSlides.length);
   };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+    setCurrentSlide((prev) => (prev - 1 + activeSlides.length) % activeSlides.length);
   };
 
   const scrollToSection = (sectionId: string) => {
@@ -72,6 +109,11 @@ export function MobilesHero() {
 
   const handleCtaClick = () => {
     clearFilters();
+    const link = activeSlides[currentSlide].link || "";
+    if (link) {
+      navigate(link);
+      return;
+    }
     switch (currentSlide) {
       case 0:
         navigate("/category/mobile");
@@ -106,8 +148,8 @@ export function MobilesHero() {
           className="absolute inset-0"
         >
           <img
-            src={slides[currentSlide].image}
-            alt={slides[currentSlide].heading}
+            src={activeSlides[currentSlide].image}
+            alt={activeSlides[currentSlide].heading}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-black/50" />
@@ -124,7 +166,7 @@ export function MobilesHero() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-2xl md:text-4xl lg:text-5xl font-bold text-white mb-4"
           >
-            {slides[currentSlide].heading}
+            {activeSlides[currentSlide].heading}
           </motion.h1>
 
           <motion.p
@@ -134,7 +176,7 @@ export function MobilesHero() {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="text-base md:text-lg text-white/90 mb-8 max-w-2xl mx-auto"
           >
-            {slides[currentSlide].subtext}
+            {activeSlides[currentSlide].subtext}
           </motion.p>
 
           <motion.div
@@ -149,7 +191,7 @@ export function MobilesHero() {
               className="btn-gradient text-primary-foreground rounded-full px-8 shadow-lg hover:shadow-xl transition-all"
               onClick={handleCtaClick}
             >
-              {slides[currentSlide].cta}
+              {activeSlides[currentSlide].cta}
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             {currentSlide === 0 && (
@@ -187,7 +229,7 @@ export function MobilesHero() {
 
       {/* Slide Indicators */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-        {slides.map((_, index) => (
+        {activeSlides.map((_, index) => (
           <button
             key={index}
             onClick={() => setCurrentSlide(index)}

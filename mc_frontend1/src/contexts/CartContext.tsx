@@ -15,9 +15,11 @@ interface CartProduct {
   images?: string[];
   brand?: string;
   category?: string;
-  offerId?: number;
+  offerId?: string | number;
   offerTitle?: string;
   offerPrice?: number;
+  offerText?: string;
+  originalPrice?: number;
   variantId?: string;
   selectedColor?: string;
   selectedStorage?: string;

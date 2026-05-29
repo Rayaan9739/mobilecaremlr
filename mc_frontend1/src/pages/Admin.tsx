@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ProductVariantForm } from "@/components/ProductVariantForm";
+import { BannerHeroManager, DealsManager, PopupManager } from "@/components/AdminManagers";
 import AdminAddProduct from "./AdminAddProduct";
 import {
   useAdmin,
@@ -1479,7 +1480,7 @@ function ProductForm({
                 className="p-3 border rounded-lg bg-secondary/10 space-y-3"
               >
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                  <div>
+                  <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Storage Name</p>
                     <p className="font-medium text-foreground">
                       {variant.storage}
@@ -3576,7 +3577,6 @@ type AdminSectionId =
   | "banners"
   | "brands"
   | "categories"
-  | "feature-icons"
   | "deals"
   | "popups"
   | "orders"
@@ -3588,10 +3588,9 @@ const adminSections: {
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
   { id: "products", label: "Product Management", icon: Package },
-  { id: "banners", label: "Banner Management", icon: Images },
+  { id: "banners", label: "Banner & Hero Management", icon: Images },
   { id: "brands", label: "Brand Management", icon: Tag },
   { id: "categories", label: "Category Management", icon: Settings },
-  { id: "feature-icons", label: "Feature Icon Management", icon: Star },
   { id: "deals", label: "Deals Management", icon: Flame },
   { id: "popups", label: "Popup Management", icon: Megaphone },
   { id: "orders", label: "Order Management", icon: FileText },
@@ -3634,22 +3633,6 @@ function AdminResourceManager({
       setResources([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const toggleProductField = async (
-    product: AdminProduct,
-    field: "isFeatured" | "isWeeklyTrending" | "stock",
-  ) => {
-    try {
-      const payload =
-        field === "stock"
-          ? { stock: product.stock > 0 ? 0 : 1 }
-          : { [field]: !product[field] };
-      await updateProduct(product.id, payload);
-      toast.success("Product updated");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update product");
     }
   };
 
@@ -3848,6 +3831,291 @@ function AdminResourceManager({
   );
 }
 
+function BrandManager() {
+  const { products, uploadImage } = useProducts();
+  const [brands, setBrands] = useState<AdminResource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<AdminResource | null>(null);
+  const [brandName, setBrandName] = useState("");
+  const [brandImage, setBrandImage] = useState("");
+  const [enabled, setEnabled] = useState(true);
+
+  const loadBrands = async () => {
+    try {
+      setLoading(true);
+      const response = (await api("/admin/resources/brand")) as {
+        resources: AdminResource[];
+      };
+      setBrands(response.resources || []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load brands");
+      setBrands([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBrands();
+  }, []);
+
+  const defaultBrandResources: AdminResource[] = [
+    ["Apple", "apple", "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"],
+    ["Samsung", "samsung", "https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg"],
+    ["Xiaomi", "xiaomi", "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg"],
+    ["OnePlus", "oneplus", "https://upload.wikimedia.org/wikipedia/commons/4/48/OnePlus_logo.svg"],
+    ["Realme", "realme", "https://upload.wikimedia.org/wikipedia/commons/9/9d/Realme_logo.svg"],
+    ["Vivo", "vivo", "https://upload.wikimedia.org/wikipedia/commons/e/e7/Vivo_logo_2019.svg"],
+    ["Oppo", "oppo", "https://upload.wikimedia.org/wikipedia/commons/8/8a/OPPO_LOGO_2019.svg"],
+    ["Motorola", "motorola", "https://upload.wikimedia.org/wikipedia/commons/1/16/Motorola_Icon_Logo.svg"],
+    ["Google", "google", "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg"],
+    ["Nothing", "nothing", "https://upload.wikimedia.org/wikipedia/commons/6/6c/Nothing_logo.svg"],
+  ].map(([name, slug, logo]) => ({
+    id: `default-brand-${slug}`,
+    title: name,
+    enabled: true,
+    order: 0,
+    data: { name, slug, logo, image: logo, source: "default" },
+  }));
+
+  const resetForm = () => {
+    setEditing(null);
+    setBrandName("");
+    setBrandImage("");
+    setEnabled(true);
+  };
+
+  const saveBrand = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const name = brandName.trim();
+    if (!name) {
+      toast.error("Brand name is required");
+      return;
+    }
+
+    const payload = {
+      title: name,
+      enabled,
+      order: Number(editing?.order || 0),
+      data: {
+        name,
+        logo: brandImage,
+        image: brandImage,
+        slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+      },
+    };
+
+    try {
+      if (editing) {
+        await api(`/admin/resources/brand/${editing.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Brand updated");
+      } else {
+        await api("/admin/resources/brand", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Brand created");
+      }
+      resetForm();
+      loadBrands();
+      window.dispatchEvent(new CustomEvent("mc_brand_update"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save brand");
+    }
+  };
+
+  const uploadBrandImage = async (file?: File) => {
+    if (!file) return;
+    try {
+      const url = await uploadImage(file);
+      setBrandImage(url);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
+    }
+  };
+
+  const editBrand = (brand: AdminResource) => {
+    setEditing(
+      brand.id.startsWith("product-brand-") || brand.id.startsWith("default-brand-")
+        ? null
+        : brand,
+    );
+    setBrandName(String(brand.data?.name || brand.title || ""));
+    setBrandImage(String(brand.data?.logo || brand.data?.image || ""));
+    setEnabled(brand.enabled);
+  };
+
+  const deleteBrand = async (brand: AdminResource) => {
+    if (brand.id.startsWith("default-brand-")) {
+      toast.error("Default brands cannot be deleted. Edit it and save your own logo instead.");
+      return;
+    }
+    if (brand.id.startsWith("product-brand-")) {
+      toast.error("This brand comes from existing products. Save it first before deleting.");
+      return;
+    }
+    if (!confirm(`Delete ${brand.title || "this brand"}?`)) return;
+    try {
+      await api(`/admin/resources/brand/${brand.id}`, { method: "DELETE" });
+      if (editing?.id === brand.id) resetForm();
+      toast.success("Brand deleted");
+      loadBrands();
+      window.dispatchEvent(new CustomEvent("mc_brand_update"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete brand");
+    }
+  };
+
+  const productBrands: AdminResource[] = Array.from(
+    new Map(
+      products
+        .map((product) => String(product.brand || "").trim())
+        .filter(Boolean)
+        .map((name) => [
+          name.toLowerCase(),
+          {
+            id: `product-brand-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+            title: name,
+            enabled: true,
+            order: 0,
+            data: {
+              name,
+              slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+              logo: "",
+              source: "product",
+            },
+          },
+        ]),
+    ).values(),
+  );
+  const savedBrandNames = new Set(
+    brands.map((brand) => String(brand.data?.name || brand.title || "").toLowerCase()),
+  );
+  const defaultBrandNames = new Set(
+    defaultBrandResources.map((brand) => String(brand.data?.name || brand.title || "").toLowerCase()),
+  );
+  const visibleBrands = [
+    ...brands,
+    ...defaultBrandResources.filter(
+      (brand) => !savedBrandNames.has(String(brand.title || "").toLowerCase()),
+    ),
+    ...productBrands.filter(
+      (brand) => {
+        const name = String(brand.title || "").toLowerCase();
+        return !savedBrandNames.has(name) && !defaultBrandNames.has(name);
+      },
+    ),
+  ];
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-foreground">Brand Management</h2>
+      <Card className="border-border/50">
+        <CardContent className="p-4">
+          <form onSubmit={saveBrand} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>New Brand Name</Label>
+              <Input
+                value={brandName}
+                onChange={(event) => setBrandName(event.target.value)}
+                placeholder="e.g., Samsung"
+              />
+            </div>
+            <div>
+              <Label>Brand Image</Label>
+              <Input
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp,image/svg+xml"
+                onChange={(event) => uploadBrandImage(event.target.files?.[0])}
+              />
+            </div>
+            {brandImage ? (
+              <div className="md:col-span-2 flex items-center gap-3 rounded-lg border border-border/50 bg-white p-3">
+                <img src={brandImage} alt={brandName || "Brand"} className="h-16 w-24 object-contain" />
+                <Button type="button" variant="outline" onClick={() => setBrandImage("")}>
+                  Remove Image
+                </Button>
+              </div>
+            ) : null}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(event) => setEnabled(event.target.checked)}
+                className="rounded border-2 w-4 h-4"
+              />
+              Active
+            </label>
+            <div className="md:col-span-2 flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Clear
+              </Button>
+              <Button type="submit" className="btn-gradient">
+                {editing ? "Update Brand" : "Create Brand"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3">
+        {loading ? (
+          <div className="h-24 bg-card rounded-lg animate-pulse" />
+        ) : visibleBrands.length === 0 ? (
+          <Card className="border-border/50">
+            <CardContent className="p-8 text-center text-muted-foreground">
+              No brands yet
+            </CardContent>
+          </Card>
+        ) : (
+          visibleBrands.map((brand) => (
+            <Card key={brand.id} className="border-border/50">
+              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  {brand.data?.logo || brand.data?.image ? (
+                    <img
+                      src={String(brand.data.logo || brand.data.image)}
+                      alt={brand.title || "Brand"}
+                      className="h-14 w-20 rounded bg-white object-contain"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-20 items-center justify-center rounded bg-white text-lg font-bold text-primary ring-1 ring-border">
+                      {String(brand.title || brand.data?.name || "?").slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-semibold">{brand.title || brand.data?.name || "Untitled"}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {brand.data?.source === "product"
+                        ? "From existing products"
+                        : brand.data?.source === "default"
+                          ? "Default brand - edit to upload your logo"
+                        : brand.enabled
+                          ? "Active"
+                          : "Inactive"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => editBrand(brand)}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button type="button" size="sm" variant="destructive" onClick={() => deleteBrand(brand)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function OrderManagement() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3883,15 +4151,51 @@ function OrderManagement() {
         {loading ? (
           <div className="h-24 bg-card rounded-lg animate-pulse" />
         ) : (
-          orders.map((order) => (
-            <Card key={order.id} className="border-border/50">
+          orders.map((order) => {
+            const isCompleted = order.status === "COMPLETED";
+
+            return (
+            <Card
+              key={order.id}
+              className={`border-border/50 ${isCompleted ? "grayscale bg-gray-100 opacity-75" : ""}`}
+            >
               <CardContent className="p-4 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4">
-                <div className="space-y-1 text-sm">
+                <div className="space-y-2 text-sm">
                   <h3 className="font-semibold">Order #{order.id}</h3>
                   <p>{order.user?.fullName || "Customer"} · {order.user?.phone || "-"}</p>
                   <p className="text-muted-foreground">
                     {(order.items || []).map((item: any) => item.product?.name).join(", ")}
                   </p>
+                  {order.addressText ? (
+                    <p className="text-muted-foreground">Address: {order.addressText}</p>
+                  ) : null}
+                  <div className="space-y-2 pt-2">
+                    {(order.items || []).map((item: any) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 rounded-lg border border-border/50 bg-white p-2"
+                      >
+                        {item.product?.image || item.product?.images?.[0] ? (
+                          <img
+                            src={item.product?.image || item.product?.images?.[0]}
+                            alt={item.product?.name || "Product"}
+                            className="h-12 w-12 rounded-md object-contain"
+                          />
+                        ) : null}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-foreground line-clamp-1">
+                            {item.product?.name || "Booked item"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Qty {item.quantity} · ₹{Number(item.price || 0).toLocaleString("en-IN")} each
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold">
+                          ₹{Number((item.price || 0) * (item.quantity || 0)).toLocaleString("en-IN")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                   <p className="font-semibold">₹{Number(order.total || 0).toLocaleString("en-IN")}</p>
                 </div>
                 <Select value={order.status} onValueChange={(value) => updateStatus(order.id, value)}>
@@ -3901,13 +4205,15 @@ function OrderManagement() {
                   <SelectContent>
                     <SelectItem value="PENDING">Pending</SelectItem>
                     <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                    <SelectItem value="DELIVERED">Delivered</SelectItem>
+                    <SelectItem value="PROCESSING">Processing</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
                     <SelectItem value="CANCELLED">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </CardContent>
             </Card>
-          ))
+            );
+          })
         )}
       </div>
     </div>
@@ -3915,7 +4221,9 @@ function OrderManagement() {
 }
 
 function CustomerManagement() {
+  const [tab, setTab] = useState<"customers" | "submissions">("customers");
   const [customers, setCustomers] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -3933,48 +4241,186 @@ function CustomerManagement() {
     }
   };
 
+  const loadSubmissions = async () => {
+    try {
+      setLoading(true);
+      const response = (await api("/notifications?limit=100")) as { notifications: any[] };
+      setSubmissions(response.notifications || []);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load submissions");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    loadCustomers();
-  }, []);
+    if (tab === "customers") {
+      loadCustomers();
+    } else {
+      loadSubmissions();
+    }
+  }, [tab, search]);
+
+  const markAsResolved = async (id: string) => {
+    try {
+      await api(`/notifications/${id}/reply`, { method: "PATCH" });
+      toast.success("Marked as resolved");
+      loadSubmissions();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update");
+    }
+  };
+
+  const deleteSubmission = async (id: string) => {
+    if (!confirm("Delete this submission?")) return;
+    try {
+      await api(`/notifications/${id}`, { method: "DELETE" });
+      toast.success("Deleted");
+      loadSubmissions();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete");
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between gap-3">
+      <div className="flex flex-col sm:flex-row justify-between gap-3 items-start sm:items-center">
         <h2 className="text-2xl font-bold text-foreground">Customer Management</h2>
-        <div className="flex gap-2">
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customers..." />
-          <Button type="button" variant="outline" onClick={loadCustomers}>Search</Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Input 
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
+            placeholder="Search..." 
+            className="flex-1 sm:flex-initial"
+          />
+          <Button type="button" variant="outline" onClick={() => setTab(tab === "customers" ? "submissions" : "customers")}>
+            {tab === "customers" ? "Submissions" : "Customers"}
+          </Button>
         </div>
       </div>
-      <div className="grid gap-3">
-        {loading ? (
-          <div className="h-24 bg-card rounded-lg animate-pulse" />
-        ) : (
-          customers.map((customer) => (
-            <Card key={customer.id} className="border-border/50">
-              <CardContent className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold">{customer.fullName}</h3>
-                  <p className="text-sm text-muted-foreground">{customer.email} · {customer.phone}</p>
-                  <p className="text-sm">
-                    {customer.ordersCount} orders · ₹{Number(customer.totalPurchaseAmount || 0).toLocaleString("en-IN")}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={async () => {
-                    await api(`/admin/customers/${customer.id}/disable`, { method: "PATCH" });
-                    toast.success("Customer disable recorded");
-                  }}
-                >
-                  Disable Account
-                </Button>
+
+      {tab === "customers" ? (
+        <div className="grid gap-3">
+          {loading ? (
+            <div className="h-24 bg-card rounded-lg animate-pulse" />
+          ) : customers.length === 0 ? (
+            <Card className="border-border/50">
+              <CardContent className="p-8 text-center text-muted-foreground">
+                No customers found
               </CardContent>
             </Card>
-          ))
-        )}
-      </div>
+          ) : (
+            customers.map((customer) => (
+              <Card key={customer.id} className="border-border/50">
+                <CardContent className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <h3 className="font-semibold">{customer.fullName}</h3>
+                    <p className="text-sm text-muted-foreground">{customer.email} · {customer.phone}</p>
+                    <p className="text-sm">
+                      {customer.ordersCount} orders · ₹{Number(customer.totalPurchaseAmount || 0).toLocaleString("en-IN")}
+                    </p>
+                    {customer.address ? (
+                      <p className="text-sm text-muted-foreground">Address: {customer.address}</p>
+                    ) : null}
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Badge variant="outline">
+                        Joined {new Date(customer.createdAt).toLocaleDateString()}
+                      </Badge>
+                      <Badge className={customer.emailVerified ? "bg-green-500" : "bg-gray-500"}>
+                        Email {customer.emailVerified ? "Verified" : "Unverified"}
+                      </Badge>
+                      <Badge className={customer.phoneVerified ? "bg-green-500" : "bg-gray-500"}>
+                        Phone {customer.phoneVerified ? "Verified" : "Unverified"}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      await api(`/admin/customers/${customer.id}/disable`, { method: "PATCH" });
+                      toast.success("Customer disable recorded");
+                    }}
+                  >
+                    Disable Account
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {loading ? (
+            <div className="h-24 bg-card rounded-lg animate-pulse" />
+          ) : submissions.length === 0 ? (
+            <Card className="border-border/50">
+              <CardContent className="p-8 text-center text-muted-foreground">
+                No submissions found
+              </CardContent>
+            </Card>
+          ) : (
+            submissions.map((submission) => (
+              <Card key={submission.id} className="border-border/50">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h3 className="font-semibold">{submission.name || submission.title || "Submission"}</h3>
+                        <Badge variant="outline" className="text-xs">
+                          {submission.type === "REPAIR" && "Repair Request"}
+                          {submission.type === "CONTACT" && "Contact Form"}
+                          {submission.type === "ORDER" && "Order"}
+                          {submission.type === "CART_ORDER" && "Cart Order"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {submission.mobileNumber || submission.phone || "No phone"}
+                      </p>
+                      <p className="text-sm">{submission.message}</p>
+                      {submission.type === "REPAIR" && (
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          <p>Brand: {submission.phoneBrand} · Model: {submission.phoneModel}</p>
+                          {submission.issues && submission.issues.length > 0 && (
+                            <p>Issues: {submission.issues.join(", ")}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      <Badge className={submission.replied ? "bg-green-500" : "bg-orange-500"}>
+                        {submission.replied ? "Resolved" : "Pending"}
+                      </Badge>
+                      <time className="text-xs text-muted-foreground">
+                        {new Date(submission.createdAt).toLocaleDateString()}
+                      </time>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2 border-t border-border/50">
+                    {!submission.replied && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => markAsResolved(submission.id)}
+                      >
+                        Mark Resolved
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteSubmission(submission.id)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -3985,28 +4431,25 @@ function CategoryManager() {
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [icon, setIcon] = useState("");
-  const [banner, setBanner] = useState("");
 
   const reset = () => {
     setEditingId(null);
     setName("");
     setDisplayName("");
     setIcon("");
-    setBanner("");
   };
 
   const saveCategory = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!displayName.trim() && !name.trim()) {
+    if (!displayName.trim()) {
       toast.error("Category name is required");
       return;
     }
 
     const payload = {
-      name: name || displayName,
-      displayName: displayName || name,
+      name: displayName.toUpperCase().replace(/\s+/g, "_"),
+      displayName: displayName.trim(),
       icon,
-      banner,
     };
 
     try {
@@ -4029,12 +4472,11 @@ function CategoryManager() {
     }
   };
 
-  const uploadCategoryImage = async (field: "icon" | "banner", file?: File) => {
+  const uploadCategoryImage = async (file?: File) => {
     if (!file) return;
     try {
       const url = await uploadImage(file);
-      if (field === "icon") setIcon(url);
-      if (field === "banner") setBanner(url);
+      setIcon(url);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
     }
@@ -4046,23 +4488,28 @@ function CategoryManager() {
       <Card className="border-border/50">
         <CardContent className="p-4">
           <form onSubmit={saveCategory} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            <div className="md:col-span-2">
               <Label>Category Name</Label>
-              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+              <Input 
+                value={displayName} 
+                onChange={(e) => setDisplayName(e.target.value)} 
+                placeholder="E.g., Mobile Phones"
+              />
             </div>
-            <div>
-              <Label>Category Code</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="MOBILE" />
-            </div>
-            <div>
+            <div className="md:col-span-2">
               <Label>Category Icon</Label>
-              <Input value={icon} onChange={(e) => setIcon(e.target.value)} />
-              <Input type="file" accept="image/*" className="mt-2" onChange={(e) => uploadCategoryImage("icon", e.target.files?.[0])} />
-            </div>
-            <div>
-              <Label>Category Banner</Label>
-              <Input value={banner} onChange={(e) => setBanner(e.target.value)} />
-              <Input type="file" accept="image/*" className="mt-2" onChange={(e) => uploadCategoryImage("banner", e.target.files?.[0])} />
+              <div className="space-y-2">
+                <Input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => uploadCategoryImage(e.target.files?.[0])} 
+                />
+                {icon && (
+                  <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-secondary">
+                    <img src={icon} alt="Icon" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
             </div>
             <div className="md:col-span-2 flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={reset}>Cancel</Button>
@@ -4077,9 +4524,10 @@ function CategoryManager() {
         {categories.map((category) => (
           <Card key={category.id} className="border-border/50">
             <CardContent className="p-4 flex items-center justify-between gap-3">
-              <div>
+              <div className="flex items-center gap-3 flex-1">
+                {/* Icon display */}
+                <div className="w-12 h-12 rounded-lg bg-secondary overflow-hidden flex-shrink-0" />
                 <h3 className="font-semibold">{category.displayName}</h3>
-                <p className="text-xs text-muted-foreground">{category.name}</p>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -4088,7 +4536,6 @@ function CategoryManager() {
                   variant="outline"
                   onClick={() => {
                     setEditingId(category.id);
-                    setName(category.name);
                     setDisplayName(category.displayName);
                   }}
                 >
@@ -4120,6 +4567,7 @@ export default function Admin() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
+  const { products } = useProducts();
 
   const visibleSections = adminSections.filter((section) =>
     section.label.toLowerCase().includes(sidebarSearch.toLowerCase()),
@@ -4130,73 +4578,16 @@ export default function Admin() {
       case "products":
         return <ProductsManagement defaultIsUsed={false} />;
       case "banners":
-        return (
-          <AdminResourceManager
-            type="banner"
-            title="Banner Management"
-            fields={[
-              { key: "title", label: "Banner Title" },
-              { key: "subtitle", label: "Subtitle" },
-              { key: "buttonText", label: "Button Text" },
-              { key: "buttonLink", label: "Button Link" },
-              { key: "bannerImage", label: "Banner Image" },
-              { key: "order", label: "Banner Order", kind: "number" },
-            ]}
-          />
-        );
+        return <BannerHeroManager />;
       case "brands":
-        return (
-          <AdminResourceManager
-            type="brand"
-            title="Brand Management"
-            fields={[
-              { key: "name", label: "Brand Name" },
-              { key: "logo", label: "Brand Logo" },
-              { key: "description", label: "Brand Description", kind: "textarea" },
-            ]}
-          />
-        );
+        return <BrandManager />;
       case "categories":
         return <CategoryManager />;
-      case "feature-icons":
-        return (
-          <AdminResourceManager
-            type="feature-icon"
-            title="Feature Icon Management"
-            fields={[
-              { key: "name", label: "Icon Name" },
-              { key: "icon", label: "Icon Upload" },
-            ]}
-          />
-        );
+
       case "deals":
-        return (
-          <AdminResourceManager
-            type="deal"
-            title="Deals Management"
-            fields={[
-              { key: "title", label: "Title" },
-              { key: "discount", label: "Discount %", kind: "number" },
-              { key: "banner", label: "Banner" },
-              { key: "productSelection", label: "Product Selection", kind: "textarea" },
-            ]}
-          />
-        );
+        return <DealsManager products={products} />;
       case "popups":
-        return (
-          <AdminResourceManager
-            type="popup"
-            title="Popup Management"
-            fields={[
-              { key: "title", label: "Title" },
-              { key: "description", label: "Description", kind: "textarea" },
-              { key: "image", label: "Image" },
-              { key: "buttonText", label: "Button Text" },
-              { key: "buttonLink", label: "Button Link" },
-              { key: "displayDelay", label: "Display Delay", kind: "number" },
-            ]}
-          />
-        );
+        return <PopupManager />;
       case "orders":
         return <OrderManagement />;
       case "customers":

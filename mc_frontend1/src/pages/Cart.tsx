@@ -162,6 +162,11 @@ export default function Cart() {
         color: product.selectedColor,
         storage: product.selectedStorage,
         price: product.price,
+        offerId: product.offerId,
+        offerTitle: product.offerTitle,
+        offerPrice: product.offerPrice,
+        offerText: product.offerText,
+        originalPrice: product.originalPrice,
       }));
       const orderResponse = await api<{
         order?: { id?: string };
@@ -184,6 +189,11 @@ export default function Cart() {
             color: product.selectedColor,
             storage: product.selectedStorage,
             price: product.price,
+            offerId: product.offerId,
+            offerTitle: product.offerTitle,
+            offerPrice: product.offerPrice,
+            offerText: product.offerText,
+            originalPrice: product.originalPrice,
             variantId: product.variantId || String(product.id),
           }))
           .filter(Boolean);

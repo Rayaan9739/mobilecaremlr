@@ -1,6 +1,7 @@
-import { useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { fetchPublicResources } from "@/lib/publicResources";
 
 // Type definition for Brand
 interface Brand {
@@ -104,12 +105,62 @@ const sanitizeBrands = (brands: Brand[]): Brand[] => {
     }));
 };
 
+const mergeBrands = (defaults: Brand[], saved: Brand[]) => {
+  const merged = new Map<string, Brand>();
+
+  defaults.forEach((brand) => {
+    const key = (brand.slug || brand.name || "").toLowerCase().trim();
+    if (key) merged.set(key, brand);
+  });
+
+  saved.forEach((brand) => {
+    const key = (brand.slug || brand.name || "").toLowerCase().trim();
+    if (!key) return;
+    merged.set(key, { ...merged.get(key), ...brand });
+  });
+
+  return Array.from(merged.values());
+};
+
 export function BrandCarousel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const [savedBrands, setSavedBrands] = useState<Brand[]>([]);
+
+  useEffect(() => {
+    const loadBrands = async () => {
+      try {
+        const resources = await fetchPublicResources("brand");
+        setSavedBrands(
+          resources.map((brand) => ({
+            name: String(brand.data?.name || brand.title || ""),
+            slug: String(brand.data?.slug || brand.data?.name || brand.title || "")
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/(^-|-$)/g, ""),
+            logo: String(brand.data?.logo || brand.data?.image || ""),
+          })),
+        );
+      } catch (error) {
+        console.error("Failed to load brands:", error);
+      }
+    };
+
+    loadBrands();
+    window.addEventListener("mc_brand_update", loadBrands);
+    window.addEventListener("storage", loadBrands);
+
+    return () => {
+      window.removeEventListener("mc_brand_update", loadBrands);
+      window.removeEventListener("storage", loadBrands);
+    };
+  }, []);
 
   // Filter and sanitize brands - memoized to prevent recalculation on each render
-  const validBrands = useMemo(() => sanitizeBrands(brands), []);
+  const validBrands = useMemo(
+    () => sanitizeBrands(mergeBrands(brands, savedBrands)),
+    [savedBrands],
+  );
 
   const scroll = (direction: "left" | "right") => {
     if (scrollRef.current) {

@@ -18,6 +18,7 @@ console.log(
   typeof categoryRoutes,
 );
 const orderRoutes = require("./routes/orders");
+const publicResourceRoutes = require("./routes/publicResources");
 console.log("[server] orderRoutes imported, typeof =", typeof orderRoutes);
 const addressRoutes = require("./routes/addresses");
 console.log("[server] addressRoutes imported, typeof =", typeof addressRoutes);
@@ -150,6 +151,7 @@ app.use("/api/dev", devRoutes);
 app.use("/api/content", contentRoutes); // ✅ NEW CONTENT API
 app.use("/api/admin", assetRoutes);
 app.use("/api", publicAssetRoutes); // Public asset routes (GET only)
+app.use("/api", publicResourceRoutes);
 app.use("/api/technicians", technicianRoutes); // Technicians API
 app.use("/api/admin/resources", adminResourceRoutes);
 const notificationsRoutes = require("./routes/notifications");

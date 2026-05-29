@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle, ChevronRight, Package, Truck, XCircle } from "lucide-react";
 import api from "@/lib/api";
 
-type OrderStatus = "PENDING" | "CONFIRMED" | "DELIVERED" | "CANCELLED";
+type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "DELIVERED" | "CANCELLED";
 
 type Product = {
   id: string;
@@ -28,6 +28,10 @@ function statusMeta(status: OrderStatus) {
   switch (status) {
     case "DELIVERED":
       return { label: "Delivered", icon: CheckCircle, color: "text-green-600" as const };
+    case "COMPLETED":
+      return { label: "Completed", icon: CheckCircle, color: "text-green-700" as const };
+    case "PROCESSING":
+      return { label: "Processing", icon: Truck, color: "text-amber-600" as const };
     case "CONFIRMED":
       return { label: "Confirmed", icon: Package, color: "text-blue-600" as const };
     case "CANCELLED":

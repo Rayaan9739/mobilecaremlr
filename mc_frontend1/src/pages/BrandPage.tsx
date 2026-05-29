@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { FilterPanel } from "@/components/filtering/FilterPanel";
 import { extractFilterOptions, filterProducts } from "@/utils/filterUtils";
 import { ProductListHeader } from "@/components/ProductListHeader";
+import { fetchPublicResources } from "@/lib/publicResources";
 
 // Brand aliases for matching
 const brandAliases = {
@@ -65,11 +66,14 @@ export default function BrandPage() {
     useProducts();
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [savedBrandLogo, setSavedBrandLogo] = useState("");
+  const [logoBroken, setLogoBroken] = useState(false);
 
   const normalizedBrandName = brandName?.toLowerCase() || "";
   const brandDisplayName =
     brandName?.charAt(0).toUpperCase() + brandName?.slice(1) || "";
   const brandLogo = brandLogos[normalizedBrandName as keyof typeof brandLogos];
+  const displayLogo = savedBrandLogo || brandLogo;
 
   // Brand aliases for matching
   const aliases = useMemo(
@@ -81,6 +85,31 @@ export default function BrandPage() {
   );
 
   // Initialize filters based on URL brand, but allow changes
+  useEffect(() => {
+    setLogoBroken(false);
+  }, [normalizedBrandName, displayLogo]);
+
+  useEffect(() => {
+    const loadBrandLogo = async () => {
+      if (!normalizedBrandName) return;
+      try {
+        const resources = await fetchPublicResources("brand");
+        const match = resources.find((brand) => {
+          const slug = String(brand.data?.slug || brand.data?.name || brand.title || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "");
+          return slug === normalizedBrandName;
+        });
+        setSavedBrandLogo(String(match?.data?.logo || match?.data?.image || ""));
+      } catch (error) {
+        console.error("Failed to load brand logo:", error);
+      }
+    };
+
+    loadBrandLogo();
+  }, [normalizedBrandName]);
+
   useEffect(() => {
     if (products.length > 0 && normalizedBrandName) {
       // Find all actual brand names in the products that match our aliases
@@ -242,20 +271,18 @@ export default function BrandPage() {
             animate={{ opacity: 1, y: 0 }}
             className="flex items-center gap-4 mb-8"
           >
-            {filters.brands.length === 1 &&
-              brandLogos[
-                filters.brands[0].toLowerCase() as keyof typeof brandLogos
-              ] && (
+            {filters.brands.length === 1 && displayLogo && !logoBroken ? (
                 <img
-                  src={
-                    brandLogos[
-                      filters.brands[0].toLowerCase() as keyof typeof brandLogos
-                    ]
-                  }
+                  src={displayLogo}
                   alt={`${filters.brands[0]} logo`}
+                  onError={() => setLogoBroken(true)}
                   className="w-16 h-16 object-contain bg-white rounded-xl p-2"
                 />
-              )}
+              ) : filters.brands.length === 1 ? (
+                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-white p-2 text-lg font-bold text-primary">
+                  {filters.brands[0].slice(0, 2).toUpperCase()}
+                </div>
+              ) : null}
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-foreground">
                 {filters.brands.length === 0
@@ -340,7 +367,7 @@ export default function BrandPage() {
           </div>
 
           {/* No Results */}
-          {groupedProducts.length === 0 && (
+          {flatProducts.length === 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

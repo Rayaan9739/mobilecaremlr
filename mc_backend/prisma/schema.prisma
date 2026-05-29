@@ -194,6 +194,21 @@ model AdminResource {
   @@map("admin_resources")
 }
 
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String?
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([active])
+  @@map("push_subscriptions")
+}
+
 enum Role {
   USER
   ADMIN
@@ -208,7 +223,8 @@ enum OTPType {
 enum OrderStatus {
   PENDING
   CONFIRMED
-  DELIVERED
+  PROCESSING
+  COMPLETED
   CANCELLED
 }
 

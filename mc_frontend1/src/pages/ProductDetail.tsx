@@ -470,6 +470,34 @@ export default function ProductDetail() {
 
     const currentPrice = currentVariant?.price ?? product.price;
 
+    if (
+      !window.confirm(
+        `Book ${displayName} for ₹${Math.round(currentPrice).toLocaleString("en-IN")}?`,
+      )
+    ) {
+      return;
+    }
+
+    addToCart(
+      {
+        id: currentVariant?.variantId || displayProduct.id,
+        productId: currentVariant?.variantId || displayProduct.id,
+        name: displayName,
+        price: currentPrice,
+        image: getCurrentImage(),
+        brand: displayProduct.brand,
+        category: displayProduct.category,
+        variantId: currentVariant?.variantId || displayProduct.id,
+        selectedColor: currentColor,
+        selectedStorage: currentStorage,
+      },
+      1,
+    );
+    navigate("/cart", {
+      state: { autoBookNow: true, from: location.pathname },
+    });
+    return;
+
     addOrderNotification({
       name: user?.fullName || "Customer",
       mobileNumber: toNormalizedPhoneNumber(userPhone),

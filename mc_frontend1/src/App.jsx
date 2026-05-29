@@ -11,6 +11,7 @@ import { ProductProvider } from "@/contexts/ProductContext";
 import { LoginModal } from "@/components/LoginModal";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RepairBookingModal } from "@/components/RepairBookingModal";
+import { PopupAd } from "@/components/PopupAd";
 
 import ScrollToTop from "@/components/ScrollToTop";
 import Index from "./pages/Index";
@@ -54,6 +55,7 @@ function AppContent() {
         onClose={() => setShowGuestModal(false)}
       />
       <RepairBookingModal />
+      <PopupAd />
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<Index />} />

@@ -5,14 +5,24 @@ import { useNavigate } from "react-router-dom";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useEffect, useState, useCallback } from "react";
 import { fetchHeroAsset } from "@/services/assetService";
+import { fetchPublicResources, PublicResource } from "@/lib/publicResources";
 
 export function Hero() {
   const navigate = useNavigate();
   const { heroSettings } = useAdmin();
   const [backgroundImage, setBackgroundImage] = useState<string>("");
+  const [savedHero, setSavedHero] = useState<PublicResource | null>(null);
 
   const loadHeroImage = useCallback(async () => {
     try {
+      const resources = await fetchPublicResources("banner");
+      const hero = resources.find((item) => item.data?.bannerType === "hero");
+      if (hero) {
+        setSavedHero(hero);
+        setBackgroundImage(String(hero.data?.image || ""));
+        return;
+      }
+
       const response = await fetchHeroAsset();
       if (response.url) {
         setBackgroundImage(response.url);
@@ -47,10 +57,10 @@ export function Hero() {
   }, [loadHeroImage]);
 
   // Use hero settings from AdminContext for text, but image from API
-  const tagline = heroSettings?.tagline || "Get best mobile experience with us";
-  const title = heroSettings?.title || "Premium Mobiles &";
+  const tagline = String(savedHero?.data?.tagline || heroSettings?.tagline || "Get best mobile experience with us");
+  const title = String(savedHero?.title || savedHero?.data?.title || heroSettings?.title || "Premium Mobiles &");
   const titleHighlight = heroSettings?.titleHighlight || "Accessories";
-  const subtitle = heroSettings?.subtitle || "Upgrade Your Lifestyle Today";
+  const subtitle = String(savedHero?.data?.subtitle || heroSettings?.subtitle || "Upgrade Your Lifestyle Today");
 
   return (
     <section className="relative min-h-[70vh] sm:min-h-[80vh] flex items-center pt-32 md:pt-40 pb-32 overflow-hidden">
@@ -60,11 +70,14 @@ export function Hero() {
           <img
             src={backgroundImage}
             alt="Hero Background"
+            onError={(event) => {
+              event.currentTarget.src = "/hero.jpg";
+            }}
             className="w-full h-full object-cover object-center"
           />
         ) : (
           <img
-            src="/herobg.png"
+            src="/hero.jpg"
             alt="Hero Background"
             className="w-full h-full object-cover object-center"
           />
@@ -96,8 +109,12 @@ export function Hero() {
             className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold text-primary-foreground mb-4 leading-tight"
           >
             {title}
-            <br />
-            <span className="text-gradient">{titleHighlight}</span>
+            {!savedHero && (
+              <>
+                <br />
+                <span className="text-gradient">{titleHighlight}</span>
+              </>
+            )}
           </motion.h1>
 
           <motion.p

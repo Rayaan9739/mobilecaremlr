@@ -105,6 +105,11 @@ const orderSchema = Joi.object({
         color: Joi.string().allow("").optional(),
         storage: Joi.string().allow("").optional(),
         price: Joi.number().positive().optional(),
+        offerId: Joi.alternatives().try(Joi.string(), Joi.number()).optional(),
+        offerTitle: Joi.string().allow("").optional(),
+        offerPrice: Joi.number().positive().optional(),
+        offerText: Joi.string().allow("").optional(),
+        originalPrice: Joi.number().positive().optional(),
       }),
     )
     .min(1)

@@ -25,6 +25,8 @@ export interface ProductGroup {
   image: string;
   minPrice: number;
   maxPrice: number;
+  originalPrice?: number;
+  discount?: number;
   rating?: number;
   ratingsCount?: number;
   reviewsCount?: number;
@@ -206,6 +208,9 @@ const buildGroup = (items: Product[]): ProductGroup => {
       : [variantFromLegacyProduct(item)],
   );
   const prices = variants.map((variant) => variant.price).filter((price) => price > 0);
+  const minPrice = prices.length > 0 ? Math.min(...prices) : Number(first.price) || 0;
+  const priceVariant =
+    variants.find((variant) => variant.price === minPrice) || variants[0];
   const colorMap = new Map<string, { name: string; hex?: string; dotImage?: string }>();
 
   variants.forEach((variant) => {
@@ -226,8 +231,12 @@ const buildGroup = (items: Product[]): ProductGroup => {
     category: first.category,
     description: first.description,
     image: variants[0]?.image || getVariantImage(first),
-    minPrice: prices.length > 0 ? Math.min(...prices) : Number(first.price) || 0,
+    minPrice,
     maxPrice: prices.length > 0 ? Math.max(...prices) : Number(first.price) || 0,
+    originalPrice: priceVariant?.originalPrice,
+    discount:
+      priceVariant?.discount ??
+      calculateDiscount(priceVariant?.originalPrice, priceVariant?.price),
     rating: first.rating,
     ratingsCount: first.ratingsCount,
     reviewsCount: first.reviewsCount,

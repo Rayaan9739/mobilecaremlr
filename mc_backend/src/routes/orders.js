@@ -106,13 +106,17 @@ router.post("/", auth, async (req, res) => {
           .json({ error: `Insufficient stock for ${product.name}` });
       }
 
-      const itemTotal = product.price * item.quantity;
+      const unitPrice =
+        typeof item.price === "number" && item.price > 0
+          ? item.price
+          : product.price;
+      const itemTotal = unitPrice * item.quantity;
       total += itemTotal;
 
       orderItems.push({
         productId: product.id,
         quantity: item.quantity,
-        price: product.price,
+        price: unitPrice,
       });
       requestedVariantMeta.push({
         productId: product.id,
@@ -120,7 +124,12 @@ router.post("/", auth, async (req, res) => {
         color: item.color || "",
         storage: item.storage || "",
         variantId: item.variantId || item.productId || product.id,
-        price: product.price,
+        price: unitPrice,
+        originalPrice: item.originalPrice || product.price,
+        offerId: item.offerId || null,
+        offerTitle: item.offerTitle || "",
+        offerPrice: item.offerPrice || unitPrice,
+        offerText: item.offerText || "",
       });
     }
 
@@ -180,12 +189,20 @@ router.post("/", auth, async (req, res) => {
           storage: meta.storage || "",
           variantId: meta.variantId || String(item.productId),
           price: Number(unitPrice),
+          originalPrice: Number(meta.originalPrice || item.product.price || unitPrice),
+          offerId: meta.offerId || null,
+          offerTitle: meta.offerTitle || "",
+          offerPrice: Number(meta.offerPrice || unitPrice),
+          offerText: meta.offerText || "",
           lineTotal: Number(lineTotal),
         };
       });
       const orderItemsText = detailedItems
         .map((item) => {
-          return `${item.name} [${item.color || "Default"}, ${item.storage || "Standard"}] x${item.quantity} (INR ${Number(item.price).toFixed(2)} = INR ${Number(item.lineTotal).toFixed(2)})`;
+          const offerPart = item.offerTitle
+            ? ` | Offer: ${item.offerTitle}${item.offerText ? ` | Note: ${item.offerText}` : ""}`
+            : "";
+          return `${item.name} [${item.color || "Default"}, ${item.storage || "Standard"}] x${item.quantity} (INR ${Number(item.price).toFixed(2)} = INR ${Number(item.lineTotal).toFixed(2)})${offerPart}`;
         })
         .join(", ");
 
@@ -210,6 +227,12 @@ router.post("/", auth, async (req, res) => {
             storage: item.storage,
             variantId: item.variantId,
             price: item.price,
+            originalPrice: item.originalPrice,
+            offerId: item.offerId,
+            offerTitle: item.offerTitle,
+            offerPrice: item.offerPrice,
+            offerText: item.offerText,
+            lineTotal: item.lineTotal,
           })),
           total,
           address: resolvedAddressText,

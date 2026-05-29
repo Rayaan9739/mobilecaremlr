@@ -459,4 +459,64 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
+// PUSH NOTIFICATION ROUTES
+
+// Subscribe to push notifications
+router.post("/subscribe", async (req, res) => {
+  try {
+    const { subscription } = req.body;
+    const userId = req.user?.id;
+
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: "Invalid subscription object" });
+    }
+
+    const pushSubscription = await prisma.pushSubscription.upsert({
+      where: { endpoint: subscription.endpoint },
+      update: {
+        p256dh: subscription.keys?.p256dh || "",
+        auth: subscription.keys?.auth || "",
+        active: true,
+        userId: userId || null,
+      },
+      create: {
+        endpoint: subscription.endpoint,
+        p256dh: subscription.keys?.p256dh || "",
+        auth: subscription.keys?.auth || "",
+        active: true,
+        userId: userId || null,
+      },
+    });
+
+    return res.json({
+      message: "Subscribed to push notifications",
+      subscription: pushSubscription,
+    });
+  } catch (error) {
+    console.error("Subscribe to notifications error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Unsubscribe from push notifications
+router.post("/unsubscribe", async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+
+    if (!endpoint) {
+      return res.status(400).json({ error: "Endpoint is required" });
+    }
+
+    await prisma.pushSubscription.update({
+      where: { endpoint },
+      data: { active: false },
+    });
+
+    return res.json({ message: "Unsubscribed from push notifications" });
+  } catch (error) {
+    console.error("Unsubscribe error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 module.exports = router;
