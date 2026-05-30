@@ -3878,6 +3878,34 @@ function BrandManager() {
     data: { name, slug, logo, image: logo, source: "default" },
   }));
 
+  const brandLogoFallbacks: Record<string, string> = {
+    apple: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
+    samsung: "https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg",
+    xiaomi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
+    mi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
+    redmi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
+    oneplus: "https://upload.wikimedia.org/wikipedia/commons/4/48/OnePlus_logo.svg",
+    realme: "https://upload.wikimedia.org/wikipedia/commons/9/9d/Realme_logo.svg",
+    vivo: "https://upload.wikimedia.org/wikipedia/commons/e/e7/Vivo_logo_2019.svg",
+    oppo: "https://upload.wikimedia.org/wikipedia/commons/8/8a/OPPO_LOGO_2019.svg",
+    motorola: "https://upload.wikimedia.org/wikipedia/commons/1/16/Motorola_Icon_Logo.svg",
+    google: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg",
+    nothing: "https://upload.wikimedia.org/wikipedia/commons/6/6c/Nothing_logo.svg",
+  };
+
+  const resolveBrandLogo = (brand: AdminResource) => {
+    const slug = String(brand.data?.slug || brand.data?.name || brand.title || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    return (
+      String(brand.data?.logo || brand.data?.image || "").trim() ||
+      brandLogoFallbacks[slug] ||
+      brandLogoFallbacks[slug.replace(/^mi$/, "xiaomi")] ||
+      ""
+    );
+  };
+
   const resetForm = () => {
     setEditing(null);
     setBrandName("");
@@ -4061,9 +4089,13 @@ function BrandManager() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3">
+      <div>
         {loading ? (
-          <div className="h-24 bg-card rounded-lg animate-pulse" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-48 bg-card rounded-lg animate-pulse" />
+            ))}
+          </div>
         ) : visibleBrands.length === 0 ? (
           <Card className="border-border/50">
             <CardContent className="p-8 text-center text-muted-foreground">
@@ -4071,45 +4103,84 @@ function BrandManager() {
             </CardContent>
           </Card>
         ) : (
-          visibleBrands.map((brand) => (
-            <Card key={brand.id} className="border-border/50">
-              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  {brand.data?.logo || brand.data?.image ? (
-                    <img
-                      src={String(brand.data.logo || brand.data.image)}
-                      alt={brand.title || "Brand"}
-                      className="h-14 w-20 rounded bg-white object-contain"
-                    />
-                  ) : (
-                    <div className="flex h-14 w-20 items-center justify-center rounded bg-white text-lg font-bold text-primary ring-1 ring-border">
-                      {String(brand.title || brand.data?.name || "?").slice(0, 2).toUpperCase()}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {visibleBrands.map((brand) => (
+              <Card key={brand.id} className="border-border/50 hover:shadow-lg transition-shadow overflow-hidden group">
+                <CardContent className="p-4 flex flex-col items-center justify-between h-full gap-3">
+                  <div className="w-full flex flex-col items-center gap-3 flex-1">
+                    {/* Brand Logo */}
+                    <div className="w-full h-24 rounded-lg bg-white/50 flex items-center justify-center overflow-hidden flex-shrink-0 border border-border/30">
+                      {resolveBrandLogo(brand) ? (
+                        <img
+                          src={resolveBrandLogo(brand)}
+                          alt={brand.title || "Brand"}
+                          className="h-20 w-20 object-contain"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            const slug = String(
+                              brand.data?.slug || brand.data?.name || brand.title || "",
+                            )
+                              .toLowerCase()
+                              .replace(/[^a-z0-9]+/g, "-")
+                              .replace(/(^-|-$)/g, "");
+                            const fallback =
+                              brandLogoFallbacks[slug] ||
+                              brandLogoFallbacks[slug.replace(/^mi$/, "xiaomi")] ||
+                              "";
+                            if (fallback && target.src !== fallback) {
+                              target.src = fallback;
+                              return;
+                            }
+                            target.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="flex h-20 w-20 items-center justify-center rounded text-2xl font-bold text-primary">
+                          {String(brand.title || brand.data?.name || "?").slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div>
-                    <h3 className="font-semibold">{brand.title || brand.data?.name || "Untitled"}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {brand.data?.source === "product"
-                        ? "From existing products"
-                        : brand.data?.source === "default"
-                          ? "Default brand - edit to upload your logo"
-                        : brand.enabled
-                          ? "Active"
-                          : "Inactive"}
-                    </p>
+                    
+                    {/* Brand Info */}
+                    <div className="w-full text-center">
+                      <h3 className="font-semibold text-sm line-clamp-2">{brand.title || brand.data?.name || "Untitled"}</h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {brand.data?.source === "product"
+                          ? "From products"
+                          : brand.data?.source === "default"
+                            ? "Default"
+                          : brand.enabled
+                            ? "Active"
+                            : "Inactive"}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="button" size="sm" variant="outline" onClick={() => editBrand(brand)}>
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button type="button" size="sm" variant="destructive" onClick={() => deleteBrand(brand)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                  
+                  {/* Action Buttons */}
+                  <div className="w-full flex gap-2 pt-2 border-t border-border/30">
+                    <Button 
+                      type="button" 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => editBrand(brand)}
+                      className="flex-1"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button 
+                      type="button" 
+                      size="sm" 
+                      variant="destructive" 
+                      onClick={() => deleteBrand(brand)}
+                      className="flex-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
       </div>
     </div>

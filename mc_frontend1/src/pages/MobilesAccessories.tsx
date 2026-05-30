@@ -22,7 +22,6 @@ import { Footer } from "@/components/Footer";
 import { MobilesHero } from "@/components/MobilesHero";
 import { useCart } from "@/contexts/CartContext";
 import { BrandCarousel } from "@/components/BrandCarousel";
-import { BannerCarousel } from "@/components/BannerCarousel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import api from "@/lib/api";
@@ -245,9 +244,6 @@ export default function MobilesAccessories() {
 
       <main className="pb-16">
         <div className="container mx-auto px-4">
-          {/* Banner Carousel */}
-          <BannerCarousel />
-
           {/* Shop by Brand */}
           <section className="mb-12 pt-4">
             <motion.div
@@ -587,46 +583,6 @@ export default function MobilesAccessories() {
               </div>
             </section>
           ) : null}
-
-          {/* Charger & Adapters Banner */}
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mb-12"
-          >
-            <Card
-              onClick={() => navigate("/accessories")}
-              className="bg-gradient-to-r from-primary/10 to-accent overflow-hidden cursor-pointer hover:shadow-elevated transition-all duration-300 hover:scale-[1.02]"
-            >
-              <CardContent className="p-8 flex items-center justify-between">
-                <div>
-                  <h3 className="text-2xl font-bold text-foreground mb-2">
-                    Charger & Adapters
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    The Power Behind Your Products, Rechargeable
-                  </p>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate("/accessories");
-                    }}
-                    className="btn-gradient rounded-full"
-                  >
-                    Explore → <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </div>
-                <div className="hidden md:block">
-                  <img
-                    src="https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=200&h=150&fit=crop"
-                    alt="Chargers"
-                    className="rounded-xl"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </motion.section>
         </div>
       </main>
 

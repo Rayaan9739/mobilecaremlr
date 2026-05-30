@@ -58,6 +58,24 @@ const brandLogos = {
     "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Nothing_logo.svg/120px-Nothing_logo.svg.png",
 };
 
+const fallbackBrandLogos = {
+  samsung:
+    "https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg",
+  apple:
+    "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
+  mi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
+  xiaomi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
+  redmi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
+  oneplus:
+    "https://upload.wikimedia.org/wikipedia/commons/4/48/OnePlus_logo.svg",
+  vivo: "https://upload.wikimedia.org/wikipedia/commons/e/e7/Vivo_logo_2019.svg",
+  oppo: "https://upload.wikimedia.org/wikipedia/commons/8/8a/OPPO_LOGO_2019.svg",
+  realme:
+    "https://upload.wikimedia.org/wikipedia/commons/9/9d/Realme_logo.svg",
+  nothing:
+    "https://upload.wikimedia.org/wikipedia/commons/6/6c/Nothing_logo.svg",
+};
+
 export default function BrandPage() {
   const { brandName } = useParams();
   const navigate = useNavigate();
@@ -73,7 +91,11 @@ export default function BrandPage() {
   const brandDisplayName =
     brandName?.charAt(0).toUpperCase() + brandName?.slice(1) || "";
   const brandLogo = brandLogos[normalizedBrandName as keyof typeof brandLogos];
-  const displayLogo = savedBrandLogo || brandLogo;
+  const displayLogo =
+    savedBrandLogo ||
+    brandLogo ||
+    fallbackBrandLogos[normalizedBrandName as keyof typeof fallbackBrandLogos] ||
+    "";
 
   // Brand aliases for matching
   const aliases = useMemo(
@@ -275,7 +297,17 @@ export default function BrandPage() {
                 <img
                   src={displayLogo}
                   alt={`${filters.brands[0]} logo`}
-                  onError={() => setLogoBroken(true)}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    const fallback =
+                      fallbackBrandLogos[normalizedBrandName as keyof typeof fallbackBrandLogos] ||
+                      "";
+                    if (fallback && target.src !== fallback) {
+                      target.src = fallback;
+                      return;
+                    }
+                    setLogoBroken(true);
+                  }}
                   className="w-16 h-16 object-contain bg-white rounded-xl p-2"
                 />
               ) : filters.brands.length === 1 ? (
