@@ -3081,10 +3081,6 @@ function TechnicianForm(
   const [name, setName] = useState(technician?.name || "");
   const [role, setRole] = useState(technician?.role || "");
   const [image, setImage] = useState(technician?.image || "");
-  const [yearsOfExperience, setYearsOfExperience] = useState(
-    technician?.yearsOfExperience?.toString() || "",
-  );
-  const [rating, setRating] = useState(technician?.rating?.toString() || "");
   const [isUploading, setIsUploading] = useState(false);
 
   const handleImageUpload = async (file: File) => {
@@ -3112,8 +3108,6 @@ function TechnicianForm(
       name,
       role,
       image,
-      yearsOfExperience: yearsOfExperience ? Number(yearsOfExperience) : undefined,
-      rating: rating ? Number(rating) : undefined,
     });
   };
 
@@ -3129,7 +3123,7 @@ function TechnicianForm(
         />
       </div>
       <div>
-        <Label htmlFor="role">Role/Specialization</Label>
+        <Label htmlFor="role">Role</Label>
         <Input
           id="role"
           value={role}
@@ -3137,33 +3131,8 @@ function TechnicianForm(
           placeholder="Senior Technician"
         />
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="experience">Years of Experience</Label>
-          <Input
-            id="experience"
-            type="number"
-            value={yearsOfExperience}
-            onChange={(e) => setYearsOfExperience(e.target.value)}
-            placeholder="5"
-          />
-        </div>
-        <div>
-          <Label htmlFor="rating">Rating (0-5)</Label>
-          <Input
-            id="rating"
-            type="number"
-            step="0.1"
-            min="0"
-            max="5"
-            value={rating}
-            onChange={(e) => setRating(e.target.value)}
-            placeholder="4.9"
-          />
-        </div>
-      </div>
       <div>
-        <Label htmlFor="image">Profile Image</Label>
+        <Label htmlFor="image">Pic</Label>
         <Input
           id="image-file"
           type="file"
@@ -3311,17 +3280,6 @@ function TechniciansManagement() {
               <CardContent className="p-4 flex-1 flex flex-col">
                 <h3 className="font-semibold text-foreground">{tech.name}</h3>
                 <p className="text-sm text-primary mt-1">{tech.role}</p>
-                {tech.yearsOfExperience && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {tech.yearsOfExperience} years experience
-                  </p>
-                )}
-                {tech.rating && (
-                  <div className="flex items-center gap-1 mt-2">
-                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                    <span className="text-sm font-semibold">{tech.rating}</span>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -3576,6 +3534,7 @@ type AdminSectionId =
   | "products"
   | "banners"
   | "brands"
+  | "technicians"
   | "categories"
   | "deals"
   | "popups"
@@ -3590,6 +3549,7 @@ const adminSections: {
   { id: "products", label: "Product Management", icon: Package },
   { id: "banners", label: "Banner & Hero Management", icon: Images },
   { id: "brands", label: "Brand Management", icon: Tag },
+  { id: "technicians", label: "Technicians", icon: UsersIcon },
   { id: "categories", label: "Category Management", icon: Settings },
   { id: "deals", label: "Deals Management", icon: Flame },
   { id: "popups", label: "Popup Management", icon: Megaphone },
@@ -3859,49 +3819,19 @@ function BrandManager() {
     loadBrands();
   }, []);
 
-  const defaultBrandResources: AdminResource[] = [
-    ["Apple", "apple", "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"],
-    ["Samsung", "samsung", "https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg"],
-    ["Xiaomi", "xiaomi", "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg"],
-    ["OnePlus", "oneplus", "https://upload.wikimedia.org/wikipedia/commons/4/48/OnePlus_logo.svg"],
-    ["Realme", "realme", "https://upload.wikimedia.org/wikipedia/commons/9/9d/Realme_logo.svg"],
-    ["Vivo", "vivo", "https://upload.wikimedia.org/wikipedia/commons/e/e7/Vivo_logo_2019.svg"],
-    ["Oppo", "oppo", "https://upload.wikimedia.org/wikipedia/commons/8/8a/OPPO_LOGO_2019.svg"],
-    ["Motorola", "motorola", "https://upload.wikimedia.org/wikipedia/commons/1/16/Motorola_Icon_Logo.svg"],
-    ["Google", "google", "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg"],
-    ["Nothing", "nothing", "https://upload.wikimedia.org/wikipedia/commons/6/6c/Nothing_logo.svg"],
-  ].map(([name, slug, logo]) => ({
-    id: `default-brand-${slug}`,
-    title: name,
-    enabled: true,
-    order: 0,
-    data: { name, slug, logo, image: logo, source: "default" },
-  }));
-
-  const brandLogoFallbacks: Record<string, string> = {
-    apple: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
-    samsung: "https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg",
-    xiaomi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
-    mi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
-    redmi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
-    oneplus: "https://upload.wikimedia.org/wikipedia/commons/4/48/OnePlus_logo.svg",
-    realme: "https://upload.wikimedia.org/wikipedia/commons/9/9d/Realme_logo.svg",
-    vivo: "https://upload.wikimedia.org/wikipedia/commons/e/e7/Vivo_logo_2019.svg",
-    oppo: "https://upload.wikimedia.org/wikipedia/commons/8/8a/OPPO_LOGO_2019.svg",
-    motorola: "https://upload.wikimedia.org/wikipedia/commons/1/16/Motorola_Icon_Logo.svg",
-    google: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg",
-    nothing: "https://upload.wikimedia.org/wikipedia/commons/6/6c/Nothing_logo.svg",
-  };
-
   const resolveBrandLogo = (brand: AdminResource) => {
     const slug = String(brand.data?.slug || brand.data?.name || brand.title || "")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
     return (
-      String(brand.data?.logo || brand.data?.image || "").trim() ||
-      brandLogoFallbacks[slug] ||
-      brandLogoFallbacks[slug.replace(/^mi$/, "xiaomi")] ||
+      String(
+        brand.data?.logo ||
+          brand.data?.image ||
+          brand.data?.imageUrl ||
+          (brand.data as { url?: string } | undefined)?.url ||
+          "",
+      ).trim() ||
       ""
     );
   };
@@ -3929,6 +3859,8 @@ function BrandManager() {
         name,
         logo: brandImage,
         image: brandImage,
+        imageUrl: brandImage,
+        url: brandImage,
         slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
       },
     };
@@ -3949,6 +3881,7 @@ function BrandManager() {
       }
       resetForm();
       loadBrands();
+      localStorage.setItem("mc_brand_update", String(Date.now()));
       window.dispatchEvent(new CustomEvent("mc_brand_update"));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save brand");
@@ -3972,7 +3905,15 @@ function BrandManager() {
         : brand,
     );
     setBrandName(String(brand.data?.name || brand.title || ""));
-    setBrandImage(String(brand.data?.logo || brand.data?.image || ""));
+    setBrandImage(
+      String(
+        brand.data?.logo ||
+          brand.data?.image ||
+          brand.data?.imageUrl ||
+          (brand.data as { url?: string } | undefined)?.url ||
+          "",
+      ),
+    );
     setEnabled(brand.enabled);
   };
 
@@ -3991,6 +3932,7 @@ function BrandManager() {
       if (editing?.id === brand.id) resetForm();
       toast.success("Brand deleted");
       loadBrands();
+      localStorage.setItem("mc_brand_update", String(Date.now()));
       window.dispatchEvent(new CustomEvent("mc_brand_update"));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to delete brand");
@@ -4022,18 +3964,12 @@ function BrandManager() {
   const savedBrandNames = new Set(
     brands.map((brand) => String(brand.data?.name || brand.title || "").toLowerCase()),
   );
-  const defaultBrandNames = new Set(
-    defaultBrandResources.map((brand) => String(brand.data?.name || brand.title || "").toLowerCase()),
-  );
   const visibleBrands = [
     ...brands,
-    ...defaultBrandResources.filter(
-      (brand) => !savedBrandNames.has(String(brand.title || "").toLowerCase()),
-    ),
     ...productBrands.filter(
       (brand) => {
         const name = String(brand.title || "").toLowerCase();
-        return !savedBrandNames.has(name) && !defaultBrandNames.has(name);
+        return !savedBrandNames.has(name);
       },
     ),
   ];
@@ -4116,22 +4052,7 @@ function BrandManager() {
                           alt={brand.title || "Brand"}
                           className="h-20 w-20 object-contain"
                           onError={(e) => {
-                            const target = e.currentTarget;
-                            const slug = String(
-                              brand.data?.slug || brand.data?.name || brand.title || "",
-                            )
-                              .toLowerCase()
-                              .replace(/[^a-z0-9]+/g, "-")
-                              .replace(/(^-|-$)/g, "");
-                            const fallback =
-                              brandLogoFallbacks[slug] ||
-                              brandLogoFallbacks[slug.replace(/^mi$/, "xiaomi")] ||
-                              "";
-                            if (fallback && target.src !== fallback) {
-                              target.src = fallback;
-                              return;
-                            }
-                            target.style.display = "none";
+                            e.currentTarget.style.display = "none";
                           }}
                         />
                       ) : (
@@ -4652,6 +4573,8 @@ export default function Admin() {
         return <BannerHeroManager />;
       case "brands":
         return <BrandManager />;
+      case "technicians":
+        return <TechniciansManagement />;
       case "categories":
         return <CategoryManager />;
 

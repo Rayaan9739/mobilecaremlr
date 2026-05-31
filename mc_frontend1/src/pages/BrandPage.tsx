@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { FilterPanel } from "@/components/filtering/FilterPanel";
 import { extractFilterOptions, filterProducts } from "@/utils/filterUtils";
 import { ProductListHeader } from "@/components/ProductListHeader";
-import { fetchPublicResources } from "@/lib/publicResources";
+import { findBrandBySlug, getBrandInitials } from "@/services/brandService";
 
 // Brand aliases for matching
 const brandAliases = {
@@ -37,45 +37,6 @@ const brandAliases = {
   nothing: ["nothing"],
 };
 
-// Brand logos
-const brandLogos = {
-  samsung:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Samsung_Logo.svg/120px-Samsung_Logo.svg.png",
-  apple:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/120px-Apple_logo_black.svg.png",
-  mi: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Xiaomi_logo_%282021-%29.svg/120px-Xiaomi_logo_%282021-%29.svg.png",
-  xiaomi:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Xiaomi_logo_%282021-%29.svg/120px-Xiaomi_logo_%282021-%29.svg.png",
-  redmi:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Xiaomi_logo_%282021-%29.svg/120px-Xiaomi_logo_%282021-%29.svg.png",
-  oneplus:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/OnePlus_logo.svg/120px-OnePlus_logo.svg.png",
-  vivo: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Vivo_Logo.svg/120px-Vivo_Logo.svg.png",
-  oppo: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/OPPO_LOGO_2019.svg/120px-OPPO_LOGO_2019.svg.png",
-  realme:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Realme_logo.svg/120px-Realme_logo.svg.png",
-  nothing:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Nothing_logo.svg/120px-Nothing_logo.svg.png",
-};
-
-const fallbackBrandLogos = {
-  samsung:
-    "https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg",
-  apple:
-    "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
-  mi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
-  xiaomi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
-  redmi: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg",
-  oneplus:
-    "https://upload.wikimedia.org/wikipedia/commons/4/48/OnePlus_logo.svg",
-  vivo: "https://upload.wikimedia.org/wikipedia/commons/e/e7/Vivo_logo_2019.svg",
-  oppo: "https://upload.wikimedia.org/wikipedia/commons/8/8a/OPPO_LOGO_2019.svg",
-  realme:
-    "https://upload.wikimedia.org/wikipedia/commons/9/9d/Realme_logo.svg",
-  nothing:
-    "https://upload.wikimedia.org/wikipedia/commons/6/6c/Nothing_logo.svg",
-};
-
 export default function BrandPage() {
   const { brandName } = useParams();
   const navigate = useNavigate();
@@ -84,18 +45,14 @@ export default function BrandPage() {
     useProducts();
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [savedBrandName, setSavedBrandName] = useState("");
   const [savedBrandLogo, setSavedBrandLogo] = useState("");
   const [logoBroken, setLogoBroken] = useState(false);
 
   const normalizedBrandName = brandName?.toLowerCase() || "";
   const brandDisplayName =
-    brandName?.charAt(0).toUpperCase() + brandName?.slice(1) || "";
-  const brandLogo = brandLogos[normalizedBrandName as keyof typeof brandLogos];
-  const displayLogo =
-    savedBrandLogo ||
-    brandLogo ||
-    fallbackBrandLogos[normalizedBrandName as keyof typeof fallbackBrandLogos] ||
-    "";
+    savedBrandName || (brandName?.charAt(0).toUpperCase() + brandName?.slice(1)) || "";
+  const displayLogo = savedBrandLogo;
 
   // Brand aliases for matching
   const aliases = useMemo(
@@ -112,24 +69,24 @@ export default function BrandPage() {
   }, [normalizedBrandName, displayLogo]);
 
   useEffect(() => {
-    const loadBrandLogo = async () => {
+    const loadBrand = async () => {
       if (!normalizedBrandName) return;
       try {
-        const resources = await fetchPublicResources("brand");
-        const match = resources.find((brand) => {
-          const slug = String(brand.data?.slug || brand.data?.name || brand.title || "")
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/(^-|-$)/g, "");
-          return slug === normalizedBrandName;
-        });
-        setSavedBrandLogo(String(match?.data?.logo || match?.data?.image || ""));
+        const brand = await findBrandBySlug(normalizedBrandName);
+        setSavedBrandName(brand?.name || "");
+        setSavedBrandLogo(brand?.image || "");
       } catch (error) {
         console.error("Failed to load brand logo:", error);
       }
     };
 
-    loadBrandLogo();
+    loadBrand();
+    window.addEventListener("mc_brand_update", loadBrand);
+    window.addEventListener("storage", loadBrand);
+    return () => {
+      window.removeEventListener("mc_brand_update", loadBrand);
+      window.removeEventListener("storage", loadBrand);
+    };
   }, [normalizedBrandName]);
 
   useEffect(() => {
@@ -299,20 +256,13 @@ export default function BrandPage() {
                   alt={`${filters.brands[0]} logo`}
                   onError={(e) => {
                     const target = e.currentTarget;
-                    const fallback =
-                      fallbackBrandLogos[normalizedBrandName as keyof typeof fallbackBrandLogos] ||
-                      "";
-                    if (fallback && target.src !== fallback) {
-                      target.src = fallback;
-                      return;
-                    }
                     setLogoBroken(true);
                   }}
                   className="w-16 h-16 object-contain bg-white rounded-xl p-2"
                 />
               ) : filters.brands.length === 1 ? (
                 <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-white p-2 text-lg font-bold text-primary">
-                  {filters.brands[0].slice(0, 2).toUpperCase()}
+                  {getBrandInitials(filters.brands[0])}
                 </div>
               ) : null}
             <div>
@@ -381,14 +331,14 @@ export default function BrandPage() {
                           product.originalPrice &&
                           product.originalPrice > product.minPrice && (
                             <span className="text-muted-foreground text-[6px] sm:text-xs line-through">
-                              ₹
+                              ?
                               {Math.round(product.originalPrice).toLocaleString(
                                 "en-IN",
                               )}
                             </span>
                           )}
                         <span className="text-foreground font-black text-[9px] sm:text-sm">
-                          ₹{product.minPrice.toLocaleString()}
+                          ?{product.minPrice.toLocaleString()}
                         </span>
                       </div>
                     </div>

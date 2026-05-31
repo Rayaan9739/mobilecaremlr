@@ -1,27 +1,33 @@
 import { motion } from "framer-motion";
 import { Star, ChevronLeft, ChevronRight } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { fetchTechnicians, type Technician } from "@/services/assetService";
+import { useAdmin } from "@/contexts/AdminContext";
 
-const team = [
+const fallbackTeam: Technician[] = [
   {
+    id: 1,
     name: "Rajesh Kumar",
     role: "Senior Technician",
     image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=300",
     rating: 4.9,
   },
   {
+    id: 2,
     name: "Priya Sharma",
     role: "Software Specialist",
     image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300",
     rating: 4.8,
   },
   {
+    id: 3,
     name: "Amit Patel",
     role: "Hardware Expert",
     image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300",
     rating: 4.9,
   },
   {
+    id: 4,
     name: "Sneha Reddy",
     role: "Customer Support",
     image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=300",
@@ -30,7 +36,28 @@ const team = [
 ];
 
 export function Team() {
+  const { technicians: adminTechnicians } = useAdmin();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [team, setTeam] = useState<Technician[]>(fallbackTeam);
+
+  useEffect(() => {
+    const loadTeam = async () => {
+      try {
+        const liveTeam = await fetchTechnicians();
+        setTeam(liveTeam.length > 0 ? liveTeam : (adminTechnicians as Technician[]));
+      } catch {
+        setTeam((adminTechnicians as Technician[]).length > 0 ? (adminTechnicians as Technician[]) : fallbackTeam);
+      }
+    };
+
+    loadTeam();
+    window.addEventListener("mc_technician_update", loadTeam);
+    window.addEventListener("storage", loadTeam);
+    return () => {
+      window.removeEventListener("mc_technician_update", loadTeam);
+      window.removeEventListener("storage", loadTeam);
+    };
+  }, [adminTechnicians]);
 
   const scroll = (direction: "left" | "right") => {
     if (scrollRef.current) {
@@ -91,6 +118,10 @@ export function Team() {
                       src={member.image}
                       alt={member.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.src = "/hero.jpg";
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-foreground/50 to-transparent" />
                   </div>

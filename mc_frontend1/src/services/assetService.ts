@@ -26,6 +26,7 @@ export interface Technician {
   name: string;
   role: string;
   image: string;
+  pic?: string;
   yearsOfExperience?: number;
   rating?: number;
 }

@@ -81,9 +81,13 @@ export default function About() {
                 <div className="bg-card rounded-3xl overflow-hidden shadow-card card-hover text-center h-full">
                   <div className="relative h-64 overflow-hidden">
                     <img
-                      src={member.image}
+                      src={member.image || "/hero.jpg"}
                       alt={member.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.src = "/hero.jpg";
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-foreground/50 to-transparent" />
                   </div>
@@ -173,6 +177,10 @@ export default function About() {
                   src="/about.png"
                   alt="Mobile Care Store"
                   className="w-full h-auto rounded-2xl shadow-lg"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.src = "/hero.jpg";
+                  }}
                 />
               </motion.div>
             </div>

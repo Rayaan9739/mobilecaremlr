@@ -6,6 +6,8 @@ export type PublicResource = {
   enabled: boolean;
   order: number;
   data: Record<string, unknown>;
+  imageUrl?: string;
+  url?: string;
 };
 
 export const fetchPublicResources = async (type: "banner" | "popup" | "brand") => {
