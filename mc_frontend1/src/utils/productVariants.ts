@@ -74,6 +74,9 @@ const titleCase = (value: string) =>
 const cleanImages = (images?: string[]) =>
   (images || []).map((img) => String(img || "").trim()).filter(Boolean);
 
+const normalizeValue = (value?: string | null) =>
+  String(value || "").toLowerCase().trim();
+
 const getVariantImage = (product: Product, color?: ProductColorVariant) => {
   const colorImages = cleanImages(color?.images);
   if (colorImages[0]) return colorImages[0];
@@ -282,4 +285,45 @@ export const pickVariant = (
   if (byStorage) return byStorage;
 
   return group.variants[0];
+};
+
+export const getVariantsByFamilyAndColor = (
+  products: Product[],
+  familyId?: string,
+  color?: string,
+) =>
+  products.filter(
+    (product) =>
+      Boolean(familyId) &&
+      normalizeValue(product.familyId) === normalizeValue(familyId) &&
+      Boolean(color) &&
+      (normalizeValue(product.colorName) === normalizeValue(color) ||
+        normalizeValue(product.colors?.[0]?.name) === normalizeValue(color) ||
+        normalizeValue(product.colorVariants?.[0]?.name) === normalizeValue(color)),
+  );
+
+export const getFamilyColors = (products: Product[], familyId?: string) => {
+  const familyProducts = products.filter(
+    (product) => normalizeValue(product.familyId) === normalizeValue(familyId),
+  );
+  const colorMap = new Map<
+    string,
+    { name: string; hex?: string; dotImage?: string }
+  >();
+
+  familyProducts.forEach((product) => {
+    const color =
+      product.colorName?.trim() ||
+      product.colors?.[0]?.name?.trim() ||
+      product.colorVariants?.[0]?.name?.trim();
+    if (!color || colorMap.has(color)) return;
+
+    colorMap.set(color, {
+      name: color,
+      hex: product.colorHex || product.colors?.[0]?.hex || product.colorVariants?.[0]?.hex,
+      dotImage: product.colors?.[0]?.dotImage || product.colorVariants?.[0]?.dotImage,
+    });
+  });
+
+  return Array.from(colorMap.values());
 };

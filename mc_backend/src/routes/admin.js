@@ -28,7 +28,7 @@ router.use(adminAuth);
 // PRODUCT MANAGEMENT
 
 // Create product
-router.post("/products", upload.array("images", 5), async (req, res) => {
+router.post("/products", upload.array("images"), async (req, res) => {
   try {
     const {
       name,
@@ -65,14 +65,14 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
 
     const isUsedPhone = normalizedCategory === "USED_PHONE";
     if (!isUsedPhone) {
-      const categoryExists = await prisma.category.findUnique({
+      await prisma.category.upsert({
         where: { name: normalizedCategory },
+        update: { displayName: category.toString().trim() },
+        create: {
+          name: normalizedCategory,
+          displayName: category.toString().trim(),
+        },
       });
-      if (!categoryExists) {
-        return res
-          .status(400)
-          .json({ error: "Invalid category. Create it in Categories first." });
-      }
     }
 
     const images = req.files ? req.files.map((file) => file.path) : [];
@@ -123,7 +123,7 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
 });
 
 // Update product
-router.put("/products/:id", upload.array("images", 5), async (req, res) => {
+router.put("/products/:id", upload.array("images"), async (req, res) => {
   try {
     const {
       name,
@@ -160,14 +160,14 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
 
     const isUsedPhone = normalizedCategory === "USED_PHONE";
     if (!isUsedPhone) {
-      const categoryExists = await prisma.category.findUnique({
+      await prisma.category.upsert({
         where: { name: normalizedCategory },
+        update: { displayName: category.toString().trim() },
+        create: {
+          name: normalizedCategory,
+          displayName: category.toString().trim(),
+        },
       });
-      if (!categoryExists) {
-        return res
-          .status(400)
-          .json({ error: "Invalid category. Create it in Categories first." });
-      }
     }
 
     const newImages = req.files ? req.files.map((file) => file.path) : [];

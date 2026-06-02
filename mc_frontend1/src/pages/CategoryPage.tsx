@@ -133,8 +133,28 @@ export default function CategoryPage() {
 
     // Apply search query
     if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       result = result.filter((product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()),
+        [
+          product.name,
+          product.brand,
+          product.category,
+          product.colorName,
+          product.storageOption,
+          ...(product.colorVariants || []).map((color) =>
+            [
+              color.name,
+              color.hex,
+              color.dotImage,
+              ...(color.storageVariants || []).map((storage) =>
+                [storage.storage, storage.price, storage.originalPrice].join(" "),
+              ),
+            ].join(" "),
+          ),
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query),
       );
     }
 

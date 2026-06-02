@@ -107,6 +107,18 @@ export default function OfferDetail() {
       .filter(Boolean) as { product: any; offerPrice: number; text: string }[];
   }, [offer, products]);
 
+  const getProductDetailPath = (product: any) => {
+    const category = String(product?.category || "")
+      .toUpperCase()
+      .replace(/[\s-]+/g, "_");
+
+    if (category === "USED_PHONE" || category === "USED_PHONES") {
+      return `/used-phones/${product.id}`;
+    }
+
+    return `/product/${category === "MOBILE" ? "new" : "accessory"}/${product.id}`;
+  };
+
   const handleBookOfferProduct = (product: any, offerPrice: number, text = "") => {
     const userPhone = user?.phone || "";
     if (!isValidPhoneNumber(userPhone)) {
@@ -265,9 +277,15 @@ export default function OfferDetail() {
 
                       <div className="p-2 sm:p-3 flex-1 flex flex-col justify-between">
                         <div>
-                          <h3 className="font-bold text-foreground text-[8px] sm:text-sm line-clamp-2 mb-1 min-h-[20px] sm:min-h-0">
-                            {product.name}
-                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => navigate(getProductDetailPath(product))}
+                            className="text-left"
+                          >
+                            <h3 className="font-bold text-foreground text-[8px] sm:text-sm line-clamp-2 mb-1 min-h-[20px] sm:min-h-0 hover:text-primary transition-colors">
+                              {product.name}
+                            </h3>
+                          </button>
                           {text ? (
                             <p className="line-clamp-1 text-[7px] text-primary sm:text-xs">
                               {text}
@@ -292,6 +310,14 @@ export default function OfferDetail() {
                             className="h-7 sm:h-8 text-[10px] sm:text-xs rounded-full btn-gradient"
                           >
                             Book Now
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => navigate(getProductDetailPath(product))}
+                            className="h-7 sm:h-8 text-[10px] sm:text-xs rounded-full"
+                          >
+                            View Product
                           </Button>
                         </div>
                       </div>

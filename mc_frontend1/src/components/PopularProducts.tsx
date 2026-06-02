@@ -39,12 +39,15 @@ export function PopularProducts() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        // Fetch all MOBILE products (not just best sellers) for the Best Sellers section
         const response = (await api(
-          "/products?category=MOBILE&limit=50",
+          "/products?category=MOBILE&isFeatured=true&limit=50",
         )) as { products: Product[] };
         const phoneProducts = (response.products || [])
-          .filter((p: Product) => p.category?.toUpperCase() === "MOBILE")
+          .filter(
+            (p: Product) =>
+              p.category?.toUpperCase() === "MOBILE" &&
+              Boolean((p as Product & { isFeatured?: boolean }).isFeatured),
+          )
           .slice(0, 50);
         setProducts(phoneProducts);
       } catch (error) {
@@ -135,11 +138,11 @@ export function PopularProducts() {
                transition={{ delay: index * 0.1 }}
                className="relative w-full group aspect-square"
              >
-               <button
-                 type="button"
-                 onClick={() => navigate(`/product/new/${product.id}`)}
-                 className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-elevated transition-all p-2 sm:p-3 cursor-pointer border border-border/50 flex flex-col w-full h-full"
-               >
+              <button
+                type="button"
+                onClick={() => navigate(`/product/new/${product.id}`)}
+                className="bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-elevated transition-all p-2 sm:p-3 cursor-pointer border border-border/50 flex flex-col w-full h-full"
+              >
                  <div className="w-full aspect-square rounded-xl overflow-hidden relative bg-secondary/30">
                    {product.discount && product.originalPrice && product.originalPrice > product.price && (
                      <div className="absolute top-2 right-2 z-30 bg-emerald-600/90 text-white text-[9px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded">

@@ -629,7 +629,7 @@ function ProductCard({
       onClick={onClick}
       className="cursor-pointer group h-full"
     >
-      <Card className="border-border hover:border-primary/50 transition-all duration-300 hover:shadow-elevated h-[220px] sm:h-[240px] flex flex-col w-full overflow-hidden">
+      <Card className="cursor-pointer border-border hover:border-primary/50 transition-all duration-300 hover:shadow-elevated h-[220px] sm:h-[240px] flex flex-col w-full overflow-hidden">
         <CardContent className="p-0 flex flex-col h-full">
           <div className="relative overflow-hidden bg-secondary rounded-t-sm sm:rounded-t-xl h-[120px] sm:h-[130px]">
             {phone.rating && (

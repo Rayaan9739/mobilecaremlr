@@ -314,8 +314,28 @@ export default function Products() {
 
     // Apply search query
     if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       result = result.filter((product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()),
+        [
+          product.name,
+          product.brand,
+          product.category,
+          product.colorName,
+          product.storageOption,
+          ...(product.colorVariants || []).map((color) =>
+            [
+              color.name,
+              color.hex,
+              color.dotImage,
+              ...(color.storageVariants || []).map((storage) =>
+                [storage.storage, storage.price, storage.originalPrice].join(" "),
+              ),
+            ].join(" "),
+          ),
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query),
       );
     }
 
@@ -441,7 +461,7 @@ export default function Products() {
                   }
                   className="cursor-pointer group aspect-square"
                 >
-                  <Card className="border-border hover:border-primary/50 transition-all duration-300 hover:shadow-elevated flex flex-col w-full h-full overflow-hidden">
+                  <Card className="cursor-pointer border-border hover:border-primary/50 transition-all duration-300 hover:shadow-elevated flex flex-col w-full h-full overflow-hidden">
                     <CardContent className="p-0 flex flex-col h-full">
                       <div className="w-full aspect-square rounded-t-sm sm:rounded-t-xl overflow-hidden relative bg-secondary">
                         {product.discount && product.originalPrice && product.originalPrice > product.minPrice && (

@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Share2,
   ChevronRight,
@@ -30,6 +30,7 @@ import { useRepairBooking } from "@/contexts/RepairBookingContext";
 import { useProducts } from "@/contexts/ProductContext";
 import {
   groupProductsByName,
+  getFamilyColors,
   type ProductVariant,
 } from "@/utils/productVariants";
 import { useAuth } from "@/contexts/AuthContext";
@@ -109,6 +110,26 @@ export default function ProductDetail() {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const skipNextFetchRef = useRef(false);
+  const normalizeValue = (value?: string | null) =>
+    String(value || "").toLowerCase().trim();
+  const getProductColor = (item?: Partial<Product> | null) =>
+    normalizeValue(
+      item?.colorName ||
+        item?.colors?.[0]?.name ||
+        item?.colorVariants?.[0]?.name ||
+        item?.color ||
+        "",
+    );
+  const getProductStorage = (item?: Partial<Product> | null) =>
+    normalizeValue(item?.storageOption || item?.storage || "");
+  const familyProducts = useMemo(
+    () =>
+      allProducts.filter(
+        (item) =>
+          normalizeValue(item.familyId) === normalizeValue(product?.familyId),
+      ),
+    [allProducts, product?.familyId],
+  );
 
   const getVariantId = (variant?: { id?: string; variantId?: string } | null) =>
     variant?.id || variant?.variantId || "";
@@ -196,6 +217,30 @@ export default function ProductDetail() {
     fetchFamilyVariants();
   }, [product?.familyId]);
 
+  useEffect(() => {
+    if (!product) return;
+
+    console.debug("[ProductDetail] current product", {
+      id: product.id,
+      familyId: product.familyId,
+      rawColor: (product as any).color,
+      rawStorage: (product as any).storage,
+      normalizedColor: getProductColor(product),
+      normalizedStorage: getProductStorage(product),
+    });
+
+    if (product.familyId) {
+      console.debug("[ProductDetail] family products", familyProducts.map((item) => ({
+        id: item.id,
+        familyId: item.familyId,
+        color: getProductColor(item),
+        storage: getProductStorage(item),
+        name: item.name,
+      })));
+      console.debug("[ProductDetail] family api variants", familyVariants);
+    }
+  }, [product, familyProducts, familyVariants]);
+
   const productGroups = useMemo(
     () => groupProductsByName(allProducts),
     [allProducts],
@@ -223,23 +268,24 @@ export default function ProductDetail() {
     );
     if (exactMatch) return exactMatch;
 
-    const preferredColor =
-      product?.colorName?.trim() ||
-      product?.colors?.[0]?.name?.trim() ||
-      product?.colorVariants?.[0]?.name?.trim();
-    const preferredStorage = product?.storageOption?.trim();
+    const preferredColor = getProductColor(product);
+    const preferredStorage = getProductStorage(product);
 
     return (
       currentGroup.variants.find(
         (variant) =>
-          variant.color === preferredColor && variant.storage === preferredStorage,
+          normalizeValue(variant.color) === normalizeValue(preferredColor) &&
+          normalizeValue(variant.storage) === normalizeValue(preferredStorage),
+      ) ||
+      currentGroup.variants.find(
+        (variant) => normalizeValue(variant.color) === normalizeValue(preferredColor),
       ) ||
       currentGroup.variants[0] ||
       null
     );
   }, [currentGroup, product, activeVariantId]);
 
-  const currentColor = useMemo(() => {
+  const normalizedCurrentColor = useMemo(() => {
     return (
       currentVariant?.color ||
       product?.colorName?.trim() ||
@@ -250,6 +296,10 @@ export default function ProductDetail() {
     );
   }, [currentVariant, product, currentGroup]);
 
+  const currentColor = useMemo(() => {
+    return normalizedCurrentColor;
+  }, [normalizedCurrentColor]);
+
   const currentStorage = useMemo(() => {
     return (
       currentVariant?.storage ||
@@ -259,46 +309,113 @@ export default function ProductDetail() {
     );
   }, [currentVariant, product, currentGroup]);
 
+  const familyScopedVariants = useMemo(() => {
+    if (!product?.familyId || !currentColor) return [];
+    return familyProducts.filter(
+      (item) => getProductColor(item) === normalizeValue(currentColor),
+    );
+  }, [familyProducts, currentColor, product?.familyId]);
+
+  const familyColorOptions = useMemo(() => {
+    if (!product?.familyId) return [];
+    return getFamilyColors(familyProducts, product.familyId);
+  }, [familyProducts, product?.familyId]);
+
   const hasExactVariant = (color: string, storage: string) =>
-    familyVariants.some(
-      (variant) => variant.color === color && variant.storage === storage,
+    Boolean(
+      familyProducts.find(
+        (variant) =>
+          getProductColor(variant) === normalizeValue(color) &&
+          getProductStorage(variant) === normalizeValue(storage),
+      ),
     ) ||
     Boolean(
       currentGroup?.variants.find(
-        (variant) => variant.color === color && variant.storage === storage,
+        (variant) =>
+          normalizeValue(variant.color) === normalizeValue(color) &&
+          normalizeValue(variant.storage) === normalizeValue(storage),
       ),
     );
 
   const findVariantForColor = (color: string) => {
+    const colorScopedVariants = familyProducts.filter(
+      (variant) => getProductColor(variant) === normalizeValue(color),
+    );
+
+    const exact =
+      colorScopedVariants.find(
+        (variant) => getProductStorage(variant) === normalizeValue(currentStorage),
+      ) ||
+      colorScopedVariants[0] ||
+      null;
+
+    if (exact) {
+      return {
+        variantId: exact.id,
+        color: getProductColor(exact) || color,
+        storage: getProductStorage(exact) || currentStorage,
+        price: exact.price,
+        originalPrice: exact.originalPrice,
+        discount: exact.discount,
+        stock: exact.stock,
+        images: exact.images || [],
+        image: exact.images?.[0] || exact.image || "",
+        product: exact,
+      } as ProductVariant;
+    }
+
     return (
-      familyVariants.find(
-        (variant) => variant.color === color && variant.storage === currentStorage,
-      ) ||
-      familyVariants.find((variant) => variant.color === color) ||
       currentGroup?.variants.find(
-        (variant) => variant.color === color && variant.storage === currentStorage,
+        (variant) =>
+          normalizeValue(variant.color) === normalizeValue(color) &&
+          normalizeValue(variant.storage) === normalizeValue(currentStorage),
       ) ||
-      currentGroup?.variants.find((variant) => variant.color === color) ||
+      currentGroup?.variants.find(
+        (variant) => normalizeValue(variant.color) === normalizeValue(color),
+      ) ||
       null
     );
   };
 
   const findVariantForStorage = (storage: string) => {
+    const colorScopedVariants = familyProducts.filter(
+      (variant) => getProductColor(variant) === normalizeValue(currentColor),
+    );
+
+    const exact =
+      colorScopedVariants.find(
+        (variant) => getProductStorage(variant) === normalizeValue(storage),
+      ) || colorScopedVariants[0] || null;
+
+    if (exact) {
+      return {
+        variantId: exact.id,
+        color: getProductColor(exact) || currentColor,
+        storage: getProductStorage(exact) || storage,
+        price: exact.price,
+        originalPrice: exact.originalPrice,
+        discount: exact.discount,
+        stock: exact.stock,
+        images: exact.images || [],
+        image: exact.images?.[0] || exact.image || "",
+        product: exact,
+      } as ProductVariant;
+    }
+
     return (
-      familyVariants.find(
-        (variant) => variant.color === currentColor && variant.storage === storage,
-      ) ||
       currentGroup?.variants.find(
-        (variant) => variant.color === currentColor && variant.storage === storage,
+        (variant) =>
+          normalizeValue(variant.color) === normalizeValue(currentColor) &&
+          normalizeValue(variant.storage) === normalizeValue(storage),
       ) ||
       null
     );
   };
 
   const availableStorages = useMemo(() => {
-    const fromFamily = familyVariants
-      .filter((variant) => !currentColor || variant.color === currentColor)
-      .map((variant) => variant.storage)
+    const fromFamily = familyProducts
+      .filter((variant) => getProductColor(variant) === normalizeValue(currentColor))
+      .map((variant) => getProductStorage(variant) || variant.storageOption || variant.storage)
       .filter(Boolean);
 
     if (fromFamily.length > 0) {
@@ -315,37 +432,13 @@ export default function ProductDetail() {
           .filter(Boolean),
       ),
     );
-  }, [currentGroup, currentColor, familyVariants]);
+  }, [currentGroup, familyProducts, currentColor]);
 
   const availableColors = useMemo(() => {
+    if (familyColorOptions.length > 0) return familyColorOptions;
     if (!currentGroup) return [];
-
-    const sourceVariants = familyVariants.length > 0 ? familyVariants : currentGroup.variants;
-    const filtered = sourceVariants.map((variant) => {
-      if ("color" in variant) {
-        const matchedColor = currentGroup.colorOptions.find(
-          (option) => option.name === variant.color,
-        );
-        return {
-          name: variant.color,
-          hex: matchedColor?.hex,
-          dotImage: matchedColor?.dotImage,
-        };
-      }
-
-      return {
-        name: variant.color,
-        hex: variant.colorHex,
-        dotImage: variant.dotImage,
-      };
-    });
-
-    const unique = Array.from(
-      new Map(filtered.map((color) => [color.name, color])).values(),
-    );
-
-    return unique.length > 0 ? unique : currentGroup.colorOptions;
-  }, [currentGroup, familyVariants]);
+    return currentGroup.colorOptions;
+  }, [currentGroup, familyColorOptions]);
 
   const similarProducts = useMemo(() => {
     if (!currentGroup) return [];
@@ -534,14 +627,14 @@ export default function ProductDetail() {
     const baseName = (displayProduct?.name || product?.name || "").trim();
     if (!baseName) return "";
 
-    const normalizedBase = baseName.replace(/\s*\([^)]*\)\s*$/g, "").trim();
-    const variantParts = [currentColor, currentStorage].filter((part) => {
+    const normalizedBase = baseName.replace(/(\s*\([^)]*\)\s*)+$/g, "").trim();
+    const variantParts = [currentStorage, currentColor].filter((part) => {
       const cleaned = part?.trim();
       return Boolean(cleaned) && cleaned !== "Standard";
     });
 
     const alreadyIncludesVariant = variantParts.every((part) =>
-      baseName.toLowerCase().includes(part.toLowerCase()),
+      normalizedBase.toLowerCase().includes(part.toLowerCase()),
     );
 
     if (alreadyIncludesVariant) {
@@ -680,7 +773,7 @@ export default function ProductDetail() {
                     <button
                       key={index}
                       onClick={() => setSelectedImageIndex(index)}
-                      className={`w-16 h-16 rounded-xl overflow-hidden border-2 bg-white transition-all ${
+                      className={`cursor-pointer w-16 h-16 rounded-xl overflow-hidden border-2 bg-white transition-all ${
                         selectedImageIndex === index
                           ? "border-primary shadow-lg"
                           : "border-border hover:border-primary/50"
@@ -697,7 +790,7 @@ export default function ProductDetail() {
 
                 <div className="flex-1 relative">
                   <div
-                    className="bg-white rounded-3xl overflow-hidden aspect-[4/5] border border-border"
+                    className="group bg-white rounded-3xl overflow-hidden aspect-[4/5] border border-border"
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
@@ -709,7 +802,7 @@ export default function ProductDetail() {
                       transition={{ duration: 0.3 }}
                       src={getCurrentImage()}
                       alt={displayName}
-                      className="w-full h-full object-contain p-6"
+                      className="w-full h-full object-contain p-6 transition-transform duration-300 group-hover:scale-110"
                     />
                   </div>
 
@@ -717,14 +810,14 @@ export default function ProductDetail() {
                     <>
                       <button
                         onClick={goToPreviousImage}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow-lg border border-border flex items-center justify-center text-foreground hover:bg-white transition-all md:left-4"
+                        className="cursor-pointer absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow-lg border border-border flex items-center justify-center text-foreground hover:bg-white transition-all md:left-4"
                         aria-label="Previous image"
                       >
                         <ChevronLeft className="w-6 h-6" />
                       </button>
                       <button
                         onClick={goToNextImage}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow-lg border border-border flex items-center justify-center text-foreground hover:bg-white transition-all md:right-4"
+                        className="cursor-pointer absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow-lg border border-border flex items-center justify-center text-foreground hover:bg-white transition-all md:right-4"
                         aria-label="Next image"
                       >
                         <ChevronRight className="w-6 h-6" />
@@ -732,7 +825,7 @@ export default function ProductDetail() {
                     </>
                   )}
 
-                  <button className="absolute top-4 right-4 w-10 h-10 rounded-full border border-border bg-white shadow-sm flex items-center justify-center text-muted-foreground hover:border-primary transition-all">
+                  <button className="cursor-pointer absolute top-4 right-4 w-10 h-10 rounded-full border border-border bg-white shadow-sm flex items-center justify-center text-muted-foreground hover:border-primary transition-all">
                     <Share2 className="w-5 h-5" />
                   </button>
                 </div>
@@ -898,25 +991,26 @@ export default function ProductDetail() {
               </div>
 
               {displayProduct.description && (
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {displayProduct.description}
-                </p>
+                <div
+                  className="prose prose-sm max-w-none text-sm leading-6 text-muted-foreground prose-p:my-2 prose-br:leading-4 prose-strong:text-foreground prose-ul:my-2 prose-ol:my-2 prose-li:my-1"
+                  dangerouslySetInnerHTML={{ __html: displayProduct.description }}
+                />
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="flex items-center gap-3 rounded-2xl border border-border px-3 py-3">
+                <div className="flex items-center gap-3 rounded-2xl border border-border px-3 py-3 bg-white">
                   <ShieldCheck className="w-5 h-5 text-foreground" />
                   <span className="text-sm font-semibold text-foreground">
                     100% Genuine Product
                   </span>
                 </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-border px-3 py-3">
+                <div className="flex items-center gap-3 rounded-2xl border border-border px-3 py-3 bg-white">
                   <Headphones className="w-5 h-5 text-foreground" />
                   <span className="text-sm font-semibold text-foreground">
                     Usage Assistance
                   </span>
                 </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-border px-3 py-3">
+                <div className="flex items-center gap-3 rounded-2xl border border-border px-3 py-3 bg-white">
                   <Wrench className="w-5 h-5 text-foreground" />
                   <span className="text-sm font-semibold text-foreground">
                     After Purchase Service
@@ -1021,14 +1115,14 @@ export default function ProductDetail() {
                 <Button
                   onClick={handleAddToCart}
                   variant="outline"
-                  className="w-full rounded-full bg-white hover:bg-white border-border"
+                  className="w-full rounded-full bg-white hover:bg-white border-border cursor-pointer"
                 >
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Add to Cart
                 </Button>
                 <Button
                   onClick={handleBookToOrder}
-                  className="w-full rounded-full bg-foreground text-background hover:bg-foreground/90"
+                  className="w-full rounded-full bg-foreground text-background hover:bg-foreground/90 cursor-pointer"
                 >
                   Book To Order
                 </Button>
@@ -1051,7 +1145,7 @@ export default function ProductDetail() {
                         `/product/${String(item.category).toLowerCase() === "mobile" ? "new" : "accessory"}/${item.groupId}`,
                       );
                     }}
-                    className="text-left border border-border rounded-xl p-3 hover:border-primary/50 transition-colors"
+                    className="cursor-pointer text-left border border-border rounded-xl p-3 hover:border-primary/50 transition-colors"
                   >
                     <img
                       src={item.image}

@@ -744,13 +744,6 @@ const updateProduct = async (req, res) => {
       return res.status(404).json({ error: "Product not found" });
     }
 
-    // Validate images: max 4 images
-    if (images && images.length > 4) {
-      return res
-        .status(400)
-        .json({ error: "A product can have maximum 4 images" });
-    }
-
     // Build update data object with only provided fields
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -849,14 +842,14 @@ const updateProduct = async (req, res) => {
 
       const isUsedPhone = normalizedCategory === "USED_PHONE";
       if (!isUsedPhone) {
-        const categoryExists = await prisma.category.findUnique({
+        await prisma.category.upsert({
           where: { name: normalizedCategory },
+          update: { displayName: String(category).trim() },
+          create: {
+            name: normalizedCategory,
+            displayName: String(category).trim(),
+          },
         });
-        if (!categoryExists) {
-          return res.status(400).json({
-            error: "Invalid category. Create it in Categories first.",
-          });
-        }
       }
       updateData.category = isUsedPhone ? "used-phone" : normalizedCategory;
     }
