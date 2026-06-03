@@ -459,7 +459,12 @@ const getProducts = async (req, res) => {
           : ` AND false`;
       }
       if (search) {
-        sql += ` AND (LOWER(name) LIKE LOWER($${values.length + 1}) OR LOWER(description) LIKE LOWER($${values.length + 1}))`;
+        sql += ` AND (
+          LOWER(name) LIKE LOWER($${values.length + 1})
+          OR LOWER(description) LIKE LOWER($${values.length + 1})
+          OR LOWER(COALESCE("colorName", '')) LIKE LOWER($${values.length + 1})
+          OR LOWER(COALESCE("storageOption", '')) LIKE LOWER($${values.length + 1})
+        )`;
         values.push(`%${search}%`);
       }
       
@@ -905,7 +910,7 @@ const deleteProduct = async (req, res) => {
       return res.status(404).json({ error: "Product not found" });
     }
 
-    // Delete related order items first
+    // Delete related order items first so the product can be removed cleanly.
     if (product.orderItems && product.orderItems.length > 0) {
       await prisma.orderItem.deleteMany({
         where: { productId: req.params.id },

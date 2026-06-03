@@ -44,6 +44,12 @@ type StorageDraft = {
   colors: ColorDraft[];
 };
 
+type HighlightDraft = {
+  id: string;
+  icon: string;
+  text: string;
+};
+
 const createId = (prefix: string) =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -65,6 +71,12 @@ const createStorage = (): StorageDraft => ({
   comparativePrice: "",
   inStock: true,
   colors: [createColor()],
+});
+
+const createHighlight = (): HighlightDraft => ({
+  id: createId("highlight"),
+  icon: "",
+  text: "",
 });
 
 const calculateDiscount = (originalPrice: number, sellingPrice: number) =>
@@ -154,6 +166,7 @@ export default function AdminAddProduct({
   const [category, setCategory] = useState("");
   const [rating, setRating] = useState("");
   const [reviewCount, setReviewCount] = useState("");
+  const [highlights, setHighlights] = useState<HighlightDraft[]>([createHighlight()]);
   const [hasVariants, setHasVariants] = useState(() => Boolean(!editingProduct));
   const [storages, setStorages] = useState<StorageDraft[]>([createStorage()]);
   const [simpleImages, setSimpleImages] = useState<string[]>([]);
@@ -213,6 +226,18 @@ export default function AdminAddProduct({
     setDescriptionHtml(editingProduct.description || "");
     setRating(editingProduct.rating?.toString() || "");
     setReviewCount(editingProduct.reviewsCount?.toString() || "");
+    const existingHighlights = Array.isArray(editingProduct.highlights)
+      ? editingProduct.highlights.map((item: any) => ({
+          id: createId("highlight"),
+          icon: String(item?.featureIcon || item?.icon || ""),
+          text: String(item?.featureText || item?.text || item || ""),
+        }))
+      : Object.entries(editingProduct.highlights || {}).map(([icon, text]) => ({
+          id: createId("highlight"),
+          icon: String(icon || ""),
+          text: String(text || ""),
+        }));
+    setHighlights(existingHighlights.length > 0 ? existingHighlights : [createHighlight()]);
     setHasVariants(false);
     setSimpleImages(editingProduct.images || (editingProduct.image ? [editingProduct.image] : []));
     setSimpleOriginalPrice(editingProduct.originalPrice?.toString() || "");
@@ -359,6 +384,16 @@ export default function AdminAddProduct({
     } finally {
       event.target.value = "";
     }
+  };
+
+  const addHighlight = () => setHighlights((prev) => [...prev, createHighlight()]);
+  const updateHighlight = (id: string, patch: Partial<HighlightDraft>) => {
+    setHighlights((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+  };
+  const removeHighlight = (id: string) => {
+    setHighlights((prev) => (prev.length === 1 ? prev : prev.filter((item) => item.id !== id)));
   };
 
   const addStorage = () => setStorages((prev) => [...prev, createStorage()]);
@@ -625,6 +660,12 @@ export default function AdminAddProduct({
     images: simpleImages,
     colors: [],
     colorVariants: [],
+    highlights: highlights
+      .filter((item) => item.icon.trim() || item.text.trim())
+      .map((item) => ({
+        featureIcon: item.icon.trim(),
+        featureText: item.text.trim(),
+      })),
     isFeatured: isFeatured || productSections.mostPopular || productSections.flagship,
     isWeeklyTrending: isWeeklyTrending || productSections.weeklyTrending,
     isBestSeller: productSections.bestSelling,
@@ -689,6 +730,12 @@ export default function AdminAddProduct({
           colorName: color.name.trim(),
           colorHex: color.hex,
           storageOption: storage.storage.trim(),
+          highlights: highlights
+            .filter((item) => item.icon.trim() || item.text.trim())
+            .map((item) => ({
+              featureIcon: item.icon.trim(),
+              featureText: item.text.trim(),
+            })),
           isFeatured: isFeatured || productSections.mostPopular || productSections.flagship,
           isWeeklyTrending: isWeeklyTrending || productSections.weeklyTrending,
           isBestSeller: productSections.bestSelling,
@@ -873,6 +920,41 @@ export default function AdminAddProduct({
                       <input type="checkbox" checked={productSections.flagship} onChange={(e)=>setProductSections(prev=>({...prev,flagship:e.target.checked}))} />
                       <span className="text-sm">Flagship Smartphones</span>
                     </label>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label>Feature Highlights</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={addHighlight}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Highlight
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                    {highlights.map((item) => (
+                      <div key={item.id} className="grid gap-3 sm:grid-cols-[180px_1fr_auto]">
+                        <Input
+                          value={item.icon}
+                          onChange={(e) => updateHighlight(item.id, { icon: e.target.value })}
+                          placeholder="Feature Icon"
+                        />
+                        <Input
+                          value={item.text}
+                          onChange={(e) => updateHighlight(item.id, { text: e.target.value })}
+                          placeholder="Feature Text"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => removeHighlight(item.id)}
+                          disabled={highlights.length === 1}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 </div>
 

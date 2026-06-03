@@ -1022,33 +1022,55 @@ export default function ProductDetail() {
                 <h2 className="text-lg font-bold text-foreground mb-4">Highlights</h2>
                 <div className="space-y-4">
                   {Array.isArray(displayProduct.highlights) &&
-                    displayProduct.highlights.map((highlight, index) => (
+                    displayProduct.highlights.map((highlight, index) => {
+                      const title =
+                        typeof highlight === "string"
+                          ? highlight
+                          : String(
+                              (highlight as any).featureText ||
+                                (highlight as any).text ||
+                                (highlight as any).title ||
+                                "",
+                            );
+                      const iconLabel =
+                        typeof highlight === "string"
+                          ? ""
+                          : String((highlight as any).featureIcon || (highlight as any).icon || "");
+
+                      return (
                       <div key={index} className="flex items-start gap-4">
                         <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                          {highlight.toLowerCase().includes("processor") && (
+                          {iconLabel && (
+                            <span className="text-[10px] font-semibold text-primary uppercase text-center leading-tight px-1">
+                              {iconLabel}
+                            </span>
+                          )}
+                          {!iconLabel && title.toLowerCase().includes("processor") && (
                             <Cpu className="w-6 h-6 text-primary" />
                           )}
-                          {highlight.toLowerCase().includes("camera") && (
+                          {!iconLabel && title.toLowerCase().includes("camera") && (
                             <Camera className="w-6 h-6 text-primary" />
                           )}
-                          {highlight.toLowerCase().includes("display") && (
+                          {!iconLabel && title.toLowerCase().includes("display") && (
                             <Smartphone className="w-6 h-6 text-primary" />
                           )}
-                          {highlight.toLowerCase().includes("battery") && (
+                          {!iconLabel && title.toLowerCase().includes("battery") && (
                             <BatteryCharging className="w-6 h-6 text-primary" />
                           )}
-                          {!highlight.toLowerCase().includes("processor") &&
-                            !highlight.toLowerCase().includes("camera") &&
-                            !highlight.toLowerCase().includes("display") &&
-                            !highlight.toLowerCase().includes("battery") && (
+                          {!iconLabel &&
+                            !title.toLowerCase().includes("processor") &&
+                            !title.toLowerCase().includes("camera") &&
+                            !title.toLowerCase().includes("display") &&
+                            !title.toLowerCase().includes("battery") && (
                               <Smartphone className="w-6 h-6 text-primary" />
                             )}
                         </div>
                         <p className="text-sm font-medium text-foreground leading-6">
-                          {highlight}
+                          {title}
                         </p>
                       </div>
-                    ))}
+                      );
+                    })}
 
                   {!Array.isArray(displayProduct.highlights) &&
                     (() => {
