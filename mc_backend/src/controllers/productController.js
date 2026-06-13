@@ -66,12 +66,31 @@ const getProductColors = (product) => {
 const normalizeProductResponse = (product) => {
   if (!product) return product;
   const colors = getProductColors(product);
+  const storageVariants = Array.isArray(product.storageVariants)
+    ? product.storageVariants
+    : [];
+  const normalizedHighlights = (() => {
+    const value = product.highlights;
+    if (!value) return value;
+    if (Array.isArray(value)) return value;
+    if (typeof value === "object") {
+      return {
+        ...value,
+        featureHighlights: Array.isArray(value.featureHighlights)
+          ? value.featureHighlights
+          : [],
+      };
+    }
+    return value;
+  })();
   return {
     ...product,
+    storageVariants,
     colors,
     colorVariants: Array.isArray(product.colorVariants)
       ? product.colorVariants
       : colors,
+    highlights: normalizedHighlights,
     reviewCount:
       product.reviewCount ?? product.reviewsCount ?? product.ratingsCount ?? null,
     reviewsCount:
@@ -671,7 +690,20 @@ const createProduct = async (req, res) => {
 
       specs: parseJSON(body.specs, null),
 
-      highlights: parseJSON(body.highlights, {}),
+      highlights: (() => {
+        const parsed = parseJSON(body.highlights, {});
+        if (!parsed || Array.isArray(parsed)) {
+          return { featureHighlights: [] };
+        }
+        return {
+          ...parsed,
+          featureHighlights: Array.isArray(parsed.featureHighlights)
+            ? parsed.featureHighlights
+            : [],
+        };
+      })(),
+
+      storageVariants: normalizeColors(body.storageVariants, []),
 
       colors: normalizeColors(body.colors, parseJSON(body.colorVariants, [])),
 
@@ -731,6 +763,7 @@ const updateProduct = async (req, res) => {
       brand,
       specs,
       highlights,
+      storageVariants,
       colors,
       colorVariants,
       isBestSeller,
@@ -861,6 +894,7 @@ const updateProduct = async (req, res) => {
     if (specs !== undefined) {
       updateData.specs = parseJSON(specs);
     }
+    if (storageVariants !== undefined) updateData.storageVariants = normalizeColors(storageVariants);
     if (highlights !== undefined) {
       // Normalize highlights to always be an object for Prisma Json type
       if (Array.isArray(highlights)) {
@@ -869,9 +903,14 @@ const updateProduct = async (req, res) => {
           {},
         );
       } else if (highlights && typeof highlights === "object") {
-        updateData.highlights = highlights;
+        updateData.highlights = {
+          ...highlights,
+          featureHighlights: Array.isArray(highlights.featureHighlights)
+            ? highlights.featureHighlights
+            : [],
+        };
       } else {
-        updateData.highlights = {};
+        updateData.highlights = { featureHighlights: [] };
       }
     }
     if (colors !== undefined) updateData.colors = normalizeColors(colors);

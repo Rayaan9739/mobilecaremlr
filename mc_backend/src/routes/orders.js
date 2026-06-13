@@ -134,8 +134,7 @@ router.post("/", auth, async (req, res) => {
     }
 
     // Create order with transaction
-    const order = await prisma.$transaction(async (tx) => {
-      // Create order
+    const createdOrder = await prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
         data: {
           userId: req.user.id,
@@ -146,13 +145,6 @@ router.post("/", auth, async (req, res) => {
           longitude,
           items: {
             create: orderItems,
-          },
-        },
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
           },
         },
       });
@@ -168,28 +160,27 @@ router.post("/", auth, async (req, res) => {
           },
         });
       }
-
       return newOrder;
     });
+
     // Create admin notification for new order (cart order)
     let notificationCreated = false;
     try {
       const metaByProductId = new Map(
         requestedVariantMeta.map((item) => [String(item.productId), item]),
       );
-      const detailedItems = order.items.map((item) => {
+      const detailedItems = items.map((item) => {
         const meta = metaByProductId.get(String(item.productId)) || {};
-        const unitPrice =
-          typeof item.price === "number" ? item.price : item.product.price;
+        const unitPrice = Number(item.price || 0);
         const lineTotal = Number(unitPrice) * Number(item.quantity || 0);
         return {
-          name: item.product.name,
+          name: String(item.name || meta.name || item.productId || "Product"),
           quantity: item.quantity,
           color: meta.color || "",
           storage: meta.storage || "",
           variantId: meta.variantId || String(item.productId),
           price: Number(unitPrice),
-          originalPrice: Number(meta.originalPrice || item.product.price || unitPrice),
+          originalPrice: Number(meta.originalPrice || unitPrice),
           offerId: meta.offerId || null,
           offerTitle: meta.offerTitle || "",
           offerPrice: Number(meta.offerPrice || unitPrice),
@@ -213,12 +204,12 @@ router.post("/", auth, async (req, res) => {
         kind: "order",
         name: req.user.fullName || "Customer",
         mobileNumber: normalizedUserPhone,
-        message: `New Order #${order.id} | Customer: ${req.user.fullName || "Customer"} | Phone: ${req.user.phone || ""} | Email: ${req.user.email || ""} | Items: ${orderItemsText} | Total: INR ${Number(total).toFixed(2)} | Address: ${resolvedAddressText}`,
+        message: `New Order #${createdOrder.id} | Customer: ${req.user.fullName || "Customer"} | Phone: ${req.user.phone || ""} | Email: ${req.user.email || ""} | Items: ${orderItemsText} | Total: INR ${Number(total).toFixed(2)} | Address: ${resolvedAddressText}`,
         // unified properties
         type: "CART_ORDER",
         title: "New Cart Order",
         data: {
-          orderId: order.id,
+          orderId: createdOrder.id,
           mobileNumber: normalizedUserPhone,
           items: detailedItems.map((item) => ({
             name: item.name,
@@ -247,17 +238,17 @@ router.post("/", auth, async (req, res) => {
           kind: "order",
           name: req.user.fullName || "Customer",
           mobileNumber: normalizedUserPhone,
-          message: `New Order #${order.id} placed. Total INR ${Number(total).toFixed(2)}.`,
+          message: `New Order #${createdOrder.id} placed. Total INR ${Number(total).toFixed(2)}.`,
           type: "CART_ORDER",
           title: "New Cart Order",
-          data: { orderId: order.id, total },
+          data: { orderId: createdOrder.id, total },
         });
         notificationCreated = true;
       } catch (fallbackError) {
         try {
           await prisma.$executeRawUnsafe(
             `INSERT INTO "notifications" ("message") VALUES ($1)`,
-            `New Order #${order.id} placed. Total INR ${Number(total).toFixed(2)}.`,
+            `New Order #${createdOrder.id} placed. Total INR ${Number(total).toFixed(2)}.`,
           );
           notificationCreated = true;
         } catch (lastFallbackError) {
@@ -273,7 +264,7 @@ router.post("/", auth, async (req, res) => {
 
     res.status(201).json({
       message: "Order created successfully",
-      order,
+      order: createdOrder,
       notificationCreated,
     });
   } catch (error) {
@@ -287,10 +278,22 @@ router.get("/my-orders", auth, async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
       where: { userId: req.user.id },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        total: true,
         items: {
-          include: {
-            product: true,
+          select: {
+            id: true,
+            quantity: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                images: true,
+              },
+            },
           },
         },
       },
@@ -309,10 +312,22 @@ router.get("/my", auth, async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
       where: { userId: req.user.id },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        total: true,
         items: {
-          include: {
-            product: true,
+          select: {
+            id: true,
+            quantity: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                images: true,
+              },
+            },
           },
         },
       },

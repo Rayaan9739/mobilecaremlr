@@ -57,7 +57,7 @@ model Product {
   id              String      @id @default(cuid())
   familyId        String?
   name            String
-  description     String?
+  description     String?     // HTML-rich description
   price           Float
   stock           Int
   category        String
@@ -65,28 +65,46 @@ model Product {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   brand           String
-  colors          Json        @default("[]")
-  colorVariants   Json[]      @default([])
+  
+  // New hierarchical variant structure: Storage → Color
+  storageVariants Json        @default("[]") // Array<ProductStorageVariant>
+  
+  // Product metadata
+  rating          Float?
+  ratingsCount    Int?
+  reviewCount     Int?
+  
+  // Highlights with icons
+  highlights      Json        @default("[]") // Array<ProductHighlight>
+  
+  // Product flags (replaces old isBestSeller, isWeeklyTrending, etc.)
+  flags           Json        @default("{\"isWeeklyTrending\": false, \"isMostPopular\": false, \"isPremiumUsed\": false, \"isBestSelling\": false, \"isFlagship\": false}")
+  
+  // Pricing
+  originalPrice   Float?
+  discount        Float?
+  
+  // Analytics
+  bookingCount    Int         @default(0)
+  totalSales      Int         @default(0)
+  specs           Json?
+  
+  // Legacy variant tracking fields (for backward compatibility)
+  baseProductId   String?
+  colorName       String?
+  colorHex        String?
+  storageOption   String?
+  
+  // Legacy flag fields (deprecated, use 'flags' instead)
   isBestSeller    Boolean     @default(false)
   isFeatured      Boolean     @default(false)
   isNew           Boolean     @default(false)
   isNewArrival    Boolean     @default(false)
   isWeeklyTrending Boolean     @default(false)
-  originalPrice   Float?
-  discount        Float?
-  rating          Float?
-  ratingsCount    Int?
-  reviewsCount    Int?
-  reviewCount     Int?
-  specs           Json?
-  highlights      Json        @default("{}")
-  bookingCount    Int         @default(0)
-
-  // Variant tracking fields
-  baseProductId   String?
-  colorName       String?
-  colorHex        String?
-  storageOption   String?
+  
+  // Legacy JSON fields (deprecated)
+  colors          Json        @default("[]")
+  colorVariants   Json[]      @default([])
 
   orderItems      OrderItem[]
 
