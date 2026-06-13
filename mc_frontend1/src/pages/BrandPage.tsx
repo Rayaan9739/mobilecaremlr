@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useCart } from "@/contexts/CartContext";
 import { useProducts, Product } from "@/contexts/ProductContext";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,39 @@ const brandAliases = {
   nothing: ["nothing"],
 };
 
-export default function BrandPage() {
+const getSafeProductBrand = (product: Product) => {
+  const name = String(product.name || "").trim();
+  const brand = String(product.brand || "").trim();
+  return (brand || name.split(/\s+/)[0] || "").toLowerCase();
+};
+
+const getProductMinPrice = (product: Product): number => {
+  // If minPrice is already set, use it
+  if (product.minPrice !== undefined && product.minPrice > 0) {
+    return product.minPrice;
+  }
+  
+  // Try to extract from color variants
+  if (product.colorVariants && product.colorVariants.length > 0) {
+    const prices: number[] = [];
+    product.colorVariants.forEach((color) => {
+      if (color.storageVariants && color.storageVariants.length > 0) {
+        color.storageVariants.forEach((storage) => {
+          const price = Number(storage.price ?? storage.sellingPrice ?? 0);
+          if (price > 0) prices.push(price);
+        });
+      }
+    });
+    if (prices.length > 0) {
+      return Math.min(...prices);
+    }
+  }
+  
+  // Fallback to product.price
+  return Number(product.price) || 0;
+};
+
+function BrandPage() {
   const { brandName } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
@@ -95,9 +128,10 @@ export default function BrandPage() {
       const matchingBrands = Array.from(
         new Set(
           products
-            .map((p) => p.brand || p.name.split(" ")[0])
+            .map((p) => getSafeProductBrand(p))
             .filter(
               (brand) =>
+                Boolean(brand) &&
                 aliases.some(
                   (alias) => brand.toLowerCase() === alias.toLowerCase(),
                 ) || brand.toLowerCase().startsWith(normalizedBrandName),
@@ -138,7 +172,7 @@ export default function BrandPage() {
     if (!normalizedBrandName) return products;
 
     return products.filter((p) => {
-      const brandValue = (p.brand || p.name.split(" ")[0] || "").toLowerCase();
+      const brandValue = getSafeProductBrand(p);
       return (
         aliases.some((alias) => brandValue === alias.toLowerCase()) ||
         brandValue.startsWith(normalizedBrandName)
@@ -212,6 +246,31 @@ export default function BrandPage() {
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
               <p className="text-muted-foreground mt-4">Loading products...</p>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Check if brandName is provided
+  if (!brandName) {
+    return (
+      <div className="min-h-screen bg-secondary">
+        <Header />
+        <main className="pt-32 md:pt-40 pb-16">
+          <div className="container mx-auto px-4">
+            <div className="text-center py-16">
+              <h1 className="text-2xl font-bold text-foreground mb-4">
+                Brand not found
+              </h1>
+              <p className="text-muted-foreground mb-6">
+                The brand you're looking for doesn't exist.
+              </p>
+              <Button onClick={() => navigate("/mobiles-accessories")}>
+                Browse All Brands
+              </Button>
             </div>
           </div>
         </main>
@@ -349,16 +408,16 @@ export default function BrandPage() {
                       <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
                         {product.discount &&
                           product.originalPrice &&
-                          product.originalPrice > product.minPrice && (
+                          product.originalPrice > getProductMinPrice(product) && (
                             <span className="text-muted-foreground text-[6px] sm:text-xs line-through">
-                              ?
+                              ₹
                               {Math.round(product.originalPrice).toLocaleString(
                                 "en-IN",
                               )}
                             </span>
                           )}
                         <span className="text-foreground font-black text-[9px] sm:text-sm">
-                          ?{product.minPrice.toLocaleString()}
+                          ₹{getProductMinPrice(product).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -420,3 +479,12 @@ export default function BrandPage() {
     </div>
   );
 }
+
+// Export with ErrorBoundary wrapping
+const BrandPageWithErrorBoundary = () => (
+  <ErrorBoundary>
+    <BrandPage />
+  </ErrorBoundary>
+);
+
+export default BrandPageWithErrorBoundary;

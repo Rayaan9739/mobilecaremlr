@@ -16,23 +16,37 @@ export interface Category {
   displayName: string;
 }
 
-export interface ProductStorageVariant {
-  storage: string;
-  originalPrice?: number;
-  sellingPrice?: number;
-  price?: number;
-  discount?: number;
-  inStock?: boolean;
-  stock?: boolean | number;
+// New hierarchical variant structure: Storage → Color
+export interface ProductHighlight {
+  featureIcon: string;
+  featureText: string;
 }
 
 export interface ProductColorVariant {
-  name: string;
-  hex?: string;
-  dotImage?: string;
-  image?: string;
-  images?: string[];
-  storageVariants?: ProductStorageVariant[];
+  id?: string;
+  name: string; // "Silver", "Black", "Blue"
+  hex?: string; // "#C0C0C0"
+  dotImage?: string; // Color dot image URL
+  images: string[]; // Color-specific product images
+  price: number;
+  originalPrice?: number;
+  discount?: number;
+  stock: number;
+  inStock?: boolean;
+}
+
+export interface ProductStorageVariant {
+  id?: string;
+  storage: string; // "256GB", "512GB", "1TB"
+  colorVariants: ProductColorVariant[];
+}
+
+export interface ProductFlags {
+  isWeeklyTrending?: boolean;
+  isMostPopular?: boolean;
+  isPremiumUsed?: boolean;
+  isBestSelling?: boolean;
+  isFlagship?: boolean;
 }
 
 export interface Product {
@@ -41,35 +55,42 @@ export interface Product {
   name: string;
   brand: string;
   category: string;
+  rating?: number;
+  ratingsCount?: number;
+  reviewCount?: number;
+  description?: string; // HTML string for rich text
+  highlights: ProductHighlight[];
+  storageVariants: ProductStorageVariant[]; // Parent: Storage
+  flags: ProductFlags;
+  
+  // For backward compatibility and direct product access
   price: number;
   originalPrice?: number;
   discount?: number;
   stock: number;
   status?: 'In Stock' | 'Out of Stock';
-  rating?: number;
-  ratingsCount?: number;
-  reviewsCount?: number;
-  reviewCount?: number;
   image: string;
   images: string[];
-  highlights: string[];
+  
+  // Legacy variant fields (kept for compatibility)
+  colorName?: string;
+  colorHex?: string;
+  storageOption?: string;
+  baseProductId?: string;
+  specs?: Record<string, unknown>;
+  totalSales?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  
+  // Old structure (deprecated)
   colors?: ProductColorVariant[];
-  colorVariants: ProductColorVariant[];
+  colorVariants?: ProductColorVariant[];
   isBestSeller?: boolean;
   isFeatured?: boolean;
   isNew?: boolean;
   isNewArrival?: boolean;
   isWeeklyTrending?: boolean;
   isUsed?: boolean;
-  colorName?: string;
-  colorHex?: string;
-  storageOption?: string;
-  baseProductId?: string;
-  description?: string;
-  specs?: Record<string, unknown>;
-  totalSales?: number;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export interface FilterState {
@@ -210,6 +231,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         ...data,
         description: data.description || "",
         highlights: data.highlights || [],
+        storageVariants: data.storageVariants || [],
         colors: data.colors || data.colorVariants || [],
         colorVariants: data.colorVariants || [],
         isBestSeller: data.isBestSeller || false,

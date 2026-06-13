@@ -435,6 +435,19 @@ const defaultTechnicians: Technician[] = [
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: ReactNode }) {
+  const isAdminUser = (() => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (!savedUser) return false;
+      const parsed = JSON.parse(savedUser) as { role?: string; email?: string };
+      const role = String(parsed.role || "").toLowerCase();
+      const email = String(parsed.email || "").toLowerCase();
+      return role === "admin" || email === "admin@mobilecare.com";
+    } catch {
+      return false;
+    }
+  })();
+
   const [heroSettings, setHeroSettings] = useState<HeroSettings>(() => {
     const stored = localStorage.getItem("admin_heroSettings");
     return stored ? JSON.parse(stored) : defaultHeroSettings;
@@ -472,6 +485,8 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
   // Load data from API on mount
   useEffect(() => {
+    if (!isAdminUser) return;
+
     const loadFromAPI = async () => {
       try {
         // Load hero settings
@@ -500,7 +515,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       }
     };
     loadFromAPI();
-  }, []);
+  }, [isAdminUser]);
 
   useEffect(() => {
     localStorage.setItem("admin_heroSettings", JSON.stringify(heroSettings));

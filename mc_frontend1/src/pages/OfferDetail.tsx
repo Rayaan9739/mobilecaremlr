@@ -119,6 +119,16 @@ export default function OfferDetail() {
     return `/product/${category === "MOBILE" ? "new" : "accessory"}/${product.id}`;
   };
 
+  const getOfferDetailNote = (product: any, offerPrice: number, text = "") => {
+    const parts = [
+      text ? String(text).trim() : "",
+      offer?.title ? `Offer: ${offer.title}` : "",
+      offerPrice < Number(product?.price || 0) ? "Special offer price" : "",
+    ].filter(Boolean);
+
+    return parts.join(" • ");
+  };
+
   const handleBookOfferProduct = (product: any, offerPrice: number, text = "") => {
     const userPhone = user?.phone || "";
     if (!isValidPhoneNumber(userPhone)) {
@@ -277,9 +287,17 @@ export default function OfferDetail() {
 
                       <div className="p-2 sm:p-3 flex-1 flex flex-col justify-between">
                         <div>
-                          <button
-                            type="button"
-                            onClick={() => navigate(getProductDetailPath(product))}
+                        <button
+                          type="button"
+                            onClick={() =>
+                              navigate(getProductDetailPath(product), {
+                                state: {
+                                  offerNote: getOfferDetailNote(product, offerPrice, text),
+                                  offerTitle: offer?.title || "",
+                                  offerPrice,
+                                },
+                              })
+                            }
                             className="text-left"
                           >
                             <h3 className="font-bold text-foreground text-[8px] sm:text-sm line-clamp-2 mb-1 min-h-[20px] sm:min-h-0 hover:text-primary transition-colors">
@@ -314,7 +332,15 @@ export default function OfferDetail() {
                           <Button
                             type="button"
                             variant="outline"
-                            onClick={() => navigate(getProductDetailPath(product))}
+                            onClick={() =>
+                              navigate(getProductDetailPath(product), {
+                                state: {
+                                  offerNote: getOfferDetailNote(product, offerPrice, text),
+                                  offerTitle: offer?.title || "",
+                                  offerPrice,
+                                },
+                              })
+                            }
                             className="h-7 sm:h-8 text-[10px] sm:text-xs rounded-full"
                           >
                             View Product

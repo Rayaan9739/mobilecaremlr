@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { CheckCircle, ChevronRight, Package, Truck, XCircle } from "lucide-react";
-import api from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 type OrderStatus = "PENDING" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "DELIVERED" | "CANCELLED";
 
@@ -50,16 +50,67 @@ const formatDate = (iso: string) => {
 
 // Force HMR update
 export default function AccountOrders() {
-  const { data: orders = [] } = useQuery({
-    queryKey: ["myOrders"],
-    queryFn: () => api<Order[]>("/orders/my"),
-  });
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const loadOrders = async () => {
+      if (!isAuthenticated || authLoading) return;
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setOrders([]);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setErrorMessage("");
+
+        const response = await fetch("http://localhost:5000/api/orders/my", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          setOrders([]);
+          setErrorMessage("You do not have permission to view orders.");
+          return;
+        }
+
+        if (!response.ok) {
+          setOrders([]);
+          setErrorMessage("Unable to load order history right now.");
+          return;
+        }
+
+        const data = (await response.json()) as Order[];
+        setOrders(Array.isArray(data) ? data : []);
+      } catch {
+        setOrders([]);
+        setErrorMessage("Unable to load order history right now.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadOrders();
+  }, [isAuthenticated, authLoading]);
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">My Orders</h1>
 
-      {orders.length === 0 ? (
+      {!isAuthenticated ? (
+        <p className="text-gray-500">Please sign in to view your orders.</p>
+      ) : loading ? (
+        <p className="text-gray-500">Loading your order history...</p>
+      ) : errorMessage ? (
+        <p className="text-gray-500">{errorMessage}</p>
+      ) : orders.length === 0 ? (
         <p className="text-gray-500">No orders yet</p>
       ) : (
         <div className="space-y-4">

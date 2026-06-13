@@ -7,16 +7,23 @@ import {
   ChevronLeft,
   ArrowLeft,
   ShoppingCart,
+  BadgePercent,
   Percent,
   Tag,
+  CheckCircle2,
   ShieldCheck,
   Headphones,
+  Droplets,
   Wrench,
   Cpu,
   Camera,
+  Layers3,
   Smartphone,
   BatteryCharging,
+  ShoppingBag,
   Star,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -110,6 +117,24 @@ export default function ProductDetail() {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const skipNextFetchRef = useRef(false);
+  const offerState = location.state as
+    | { offerNote?: string; offerTitle?: string; offerPrice?: number }
+    | null;
+  const highlightIconMap: Record<string, JSX.Element> = {
+    Camera: <Camera className="w-5 h-5" />,
+    BatteryCharging: <BatteryCharging className="w-5 h-5" />,
+    Cpu: <Cpu className="w-5 h-5" />,
+    Layers3: <Layers3 className="w-5 h-5" />,
+    Zap: <Zap className="w-5 h-5" />,
+    Droplets: <Droplets className="w-5 h-5" />,
+    ShieldCheck: <ShieldCheck className="w-5 h-5" />,
+    BadgePercent: <BadgePercent className="w-5 h-5" />,
+    Sparkles: <Sparkles className="w-5 h-5" />,
+    Smartphone: <Smartphone className="w-5 h-5" />,
+    CheckCircle2: <CheckCircle2 className="w-5 h-5" />,
+    ShoppingBag: <ShoppingBag className="w-5 h-5" />,
+    Star: <Star className="w-5 h-5" />,
+  };
   const normalizeValue = (value?: string | null) =>
     String(value || "").toLowerCase().trim();
   const getProductColor = (item?: Partial<Product> | null) =>
@@ -648,10 +673,13 @@ export default function ProductDetail() {
     return `${normalizedBase} (${variantParts.join(" / ")})`;
   }, [currentColor, currentStorage, displayProduct?.name, product?.name]);
   const productImages = getProductImages();
-  const currentPrice = currentVariant?.price ?? displayProduct?.price ?? 0;
+  const sellingPrice = currentVariant?.price ?? displayProduct?.price ?? 0;
+  const currentPrice = offerState?.offerPrice ?? sellingPrice;
   const finalPrice = Math.round(currentPrice);
   const originalPrice =
-    currentVariant?.originalPrice ?? displayProduct?.originalPrice ?? currentPrice;
+    offerState?.offerPrice != null
+      ? sellingPrice
+      : currentVariant?.originalPrice ?? displayProduct?.originalPrice ?? currentPrice;
   const discountPercentage =
     currentVariant?.discount ??
     displayProduct?.discount ??
@@ -667,14 +695,22 @@ export default function ProductDetail() {
     return (
       <div className="min-h-screen bg-white">
         <Header />
-        <main className="pt-32 md:pt-40 pb-16 bg-white">
-          <div className="container mx-auto max-w-[1440px] px-6 lg:px-8">
-            <div className="grid lg:grid-cols-[1.15fr_0.85fr] gap-8 lg:gap-12">
-              <div className="aspect-[4/5] bg-slate-100 rounded-[32px] animate-pulse"></div>
-              <div className="space-y-4">
+        <main className="pt-32 md:pt-40 pb-16 bg-[#f5f7fa]">
+          <div className="container mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
+            <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-[88px_1fr] gap-4">
+                <div className="hidden md:flex flex-col gap-3">
+                  <div className="h-20 rounded-2xl bg-white animate-pulse" />
+                  <div className="h-20 rounded-2xl bg-white animate-pulse" />
+                  <div className="h-20 rounded-2xl bg-white animate-pulse" />
+                </div>
+                <div className="aspect-[4/5] rounded-3xl bg-white animate-pulse shadow-sm" />
+              </div>
+              <div className="rounded-3xl bg-white p-5 sm:p-6 shadow-sm space-y-4">
+                <div className="h-4 w-24 bg-slate-100 rounded animate-pulse"></div>
                 <div className="h-10 bg-slate-100 rounded animate-pulse"></div>
-                <div className="h-8 bg-slate-100 rounded animate-pulse"></div>
-                <div className="h-6 bg-slate-100 rounded animate-pulse"></div>
+                <div className="h-6 w-40 bg-slate-100 rounded animate-pulse"></div>
+                <div className="h-16 bg-slate-100 rounded-2xl animate-pulse"></div>
               </div>
             </div>
           </div>
@@ -731,8 +767,8 @@ export default function ProductDetail() {
     <div className="min-h-screen bg-white">
       <Header />
 
-      <main className="pt-32 md:pt-40 pb-16">
-        <div className="container mx-auto px-4">
+      <main className="pt-32 md:pt-40 pb-16 bg-[#f5f7fa]">
+        <div className="container mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
           {/* Breadcrumb */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -761,22 +797,22 @@ export default function ProductDetail() {
             <span className="text-foreground">{displayName}</span>
           </motion.div>
 
-          <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-8 lg:gap-10">
+          <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-8">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="flex flex-col gap-4"
             >
-              <div className="flex gap-4">
-                <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-[88px_1fr] gap-4">
+                <div className="hidden md:flex flex-col gap-3">
                   {productImages.slice(0, 6).map((img, index) => (
                     <button
                       key={index}
                       onClick={() => setSelectedImageIndex(index)}
-                      className={`cursor-pointer w-16 h-16 rounded-xl overflow-hidden border-2 bg-white transition-all ${
+                      className={`cursor-pointer h-20 rounded-2xl overflow-hidden border bg-white transition-all ${
                         selectedImageIndex === index
-                          ? "border-primary shadow-lg"
-                          : "border-border hover:border-primary/50"
+                          ? "border-blue-500 shadow-md ring-2 ring-blue-100"
+                          : "border-border hover:border-blue-300"
                       }`}
                     >
                       <img
@@ -788,9 +824,9 @@ export default function ProductDetail() {
                   ))}
                 </div>
 
-                <div className="flex-1 relative">
+                <div className="relative">
                   <div
-                    className="group bg-white rounded-3xl overflow-hidden aspect-[4/5] border border-border"
+                    className="group bg-white rounded-3xl overflow-hidden aspect-[4/5] border border-border shadow-sm"
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
@@ -799,10 +835,10 @@ export default function ProductDetail() {
                       key={selectedImageIndex}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3 }}
+                      transition={{ duration: 0.25 }}
                       src={getCurrentImage()}
                       alt={displayName}
-                      className="w-full h-full object-contain p-6 transition-transform duration-300 group-hover:scale-110"
+                      className="w-full h-full object-contain p-6 transition-transform duration-300 group-hover:scale-[1.03]"
                     />
                   </div>
 
@@ -810,22 +846,22 @@ export default function ProductDetail() {
                     <>
                       <button
                         onClick={goToPreviousImage}
-                        className="cursor-pointer absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow-lg border border-border flex items-center justify-center text-foreground hover:bg-white transition-all md:left-4"
+                        className="cursor-pointer absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-md border border-border flex items-center justify-center text-foreground hover:bg-white transition-all"
                         aria-label="Previous image"
                       >
-                        <ChevronLeft className="w-6 h-6" />
+                        <ChevronLeft className="w-5 h-5" />
                       </button>
                       <button
                         onClick={goToNextImage}
-                        className="cursor-pointer absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow-lg border border-border flex items-center justify-center text-foreground hover:bg-white transition-all md:right-4"
+                        className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-md border border-border flex items-center justify-center text-foreground hover:bg-white transition-all"
                         aria-label="Next image"
                       >
-                        <ChevronRight className="w-6 h-6" />
+                        <ChevronRight className="w-5 h-5" />
                       </button>
                     </>
                   )}
 
-                  <button className="cursor-pointer absolute top-4 right-4 w-10 h-10 rounded-full border border-border bg-white shadow-sm flex items-center justify-center text-muted-foreground hover:border-primary transition-all">
+                  <button className="cursor-pointer absolute top-4 right-4 w-10 h-10 rounded-full border border-border bg-white shadow-sm flex items-center justify-center text-muted-foreground hover:border-blue-500 transition-all">
                     <Share2 className="w-5 h-5" />
                   </button>
                 </div>
@@ -835,13 +871,19 @@ export default function ProductDetail() {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex flex-col gap-5"
+              className="flex flex-col gap-4 bg-white rounded-3xl p-5 sm:p-6 lg:p-7 shadow-sm border border-border"
             >
-              <div className="flex flex-col gap-2">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm text-muted-foreground">{displayProduct.brand}</p>
+                <h1 className="text-2xl md:text-[30px] font-semibold text-foreground leading-tight">
                   {displayName}
                 </h1>
-                <p className="text-sm text-muted-foreground">{displayProduct.brand}</p>
+                {offerState?.offerNote ? (
+                  <div className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <span className="font-semibold">Offer note: </span>
+                    {offerState.offerNote}
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
@@ -859,16 +901,16 @@ export default function ProductDetail() {
               </div>
 
               <div>
-                <Badge variant={isAvailable ? "default" : "destructive"}>
+                <Badge variant={isAvailable ? "default" : "destructive"} className="rounded-full px-3 py-1">
                   {isAvailable ? "In Stock" : "Out of Stock"}
                 </Badge>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {availableStorages.length > 0 && (
                   <div className="space-y-3">
-                    <h2 className="text-sm font-semibold text-foreground">
-                      Storage Variants
+                    <h2 className="text-base font-semibold text-foreground">
+                      Variant: {currentStorage || "Select"}
                     </h2>
                     <div className="flex gap-3 overflow-x-auto pb-1">
                       {availableStorages.map((storage) => {
@@ -891,10 +933,10 @@ export default function ProductDetail() {
                               if (!isStorageAvailable) return;
                               swapVariant(nextVariant);
                             }}
-                            className={`inline-flex shrink-0 flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all ${
+                            className={`inline-flex shrink-0 flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all min-w-[128px] ${
                               currentStorage === storage
-                                ? "border-foreground bg-white shadow-sm"
-                                : "border-border bg-white/80"
+                                ? "border-slate-900 bg-white shadow-sm"
+                                : "border-border bg-white"
                             } ${
                               !isStorageAvailable
                                 ? "cursor-not-allowed opacity-50"
@@ -924,10 +966,10 @@ export default function ProductDetail() {
                   </div>
                 )}
 
-                {availableColors.length > 0 && (
-                  <div className="space-y-3">
-                    <h2 className="text-sm font-semibold text-foreground">
-                      Colors - {currentColor}
+              {availableColors.length > 0 && (
+                <div className="space-y-3">
+                    <h2 className="text-base font-semibold text-foreground">
+                      Selected Color: {currentColor}
                     </h2>
                     <div className="flex gap-3 overflow-x-auto pb-1">
                       {availableColors.map((color) => {
@@ -945,7 +987,7 @@ export default function ProductDetail() {
                             }}
                             className={`inline-flex shrink-0 w-24 flex-col items-center gap-2 rounded-2xl border bg-white px-3 py-3 transition-all ${
                               currentColor === color.name
-                                ? "border-foreground shadow-sm"
+                                ? "border-blue-500 shadow-sm ring-2 ring-blue-100"
                                 : "border-border"
                             } ${
                               !isColorAvailable
@@ -973,21 +1015,25 @@ export default function ProductDetail() {
                       })}
                     </div>
                   </div>
-                )}
+                </div>
               </div>
 
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-2xl font-bold text-foreground">{formatINR(finalPrice)}</span>
-                {hasDiscount && (
-                  <>
-                    <span className="text-base text-muted-foreground line-through">
-                      {formatINR(originalPrice)}
-                    </span>
-                    <span className="text-sm font-semibold text-green-600">
-                      {discountPercentage}% off
-                    </span>
-                  </>
-                )}
+              <div className="rounded-2xl bg-[#f7f9fc] border border-blue-100 px-4 py-4">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-3xl font-bold text-foreground">
+                    {formatINR(finalPrice)}
+                  </span>
+                  {hasDiscount && (
+                    <>
+                      <span className="text-base text-muted-foreground line-through">
+                        {formatINR(originalPrice)}
+                      </span>
+                      <span className="text-sm font-semibold text-green-600">
+                        {discountPercentage}% off
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
 
               {displayProduct.description && (
@@ -1019,7 +1065,7 @@ export default function ProductDetail() {
               </div>
 
               <div>
-                <h2 className="text-lg font-bold text-foreground mb-4">Highlights</h2>
+                <h2 className="text-lg font-bold text-foreground mb-4">Product highlights</h2>
                 <div className="space-y-4">
                   {Array.isArray(displayProduct.highlights) &&
                     displayProduct.highlights.map((highlight, index) => {
@@ -1038,37 +1084,25 @@ export default function ProductDetail() {
                           : String((highlight as any).featureIcon || (highlight as any).icon || "");
 
                       return (
-                      <div key={index} className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                          {iconLabel && (
-                            <span className="text-[10px] font-semibold text-primary uppercase text-center leading-tight px-1">
-                              {iconLabel}
-                            </span>
-                          )}
-                          {!iconLabel && title.toLowerCase().includes("processor") && (
-                            <Cpu className="w-6 h-6 text-primary" />
-                          )}
-                          {!iconLabel && title.toLowerCase().includes("camera") && (
-                            <Camera className="w-6 h-6 text-primary" />
-                          )}
-                          {!iconLabel && title.toLowerCase().includes("display") && (
-                            <Smartphone className="w-6 h-6 text-primary" />
-                          )}
-                          {!iconLabel && title.toLowerCase().includes("battery") && (
-                            <BatteryCharging className="w-6 h-6 text-primary" />
-                          )}
-                          {!iconLabel &&
-                            !title.toLowerCase().includes("processor") &&
-                            !title.toLowerCase().includes("camera") &&
-                            !title.toLowerCase().includes("display") &&
-                            !title.toLowerCase().includes("battery") && (
-                              <Smartphone className="w-6 h-6 text-primary" />
-                            )}
+                        <div key={index} className="flex items-start gap-4 rounded-2xl p-3 hover:bg-slate-50 transition-colors">
+                          <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-slate-700">
+                            {highlightIconMap[iconLabel] ||
+                              (title.toLowerCase().includes("processor") ? (
+                                <Cpu className="w-5 h-5" />
+                              ) : title.toLowerCase().includes("camera") ? (
+                                <Camera className="w-5 h-5" />
+                              ) : title.toLowerCase().includes("display") ? (
+                                <Smartphone className="w-5 h-5" />
+                              ) : title.toLowerCase().includes("battery") ? (
+                                <BatteryCharging className="w-5 h-5" />
+                              ) : (
+                                <Smartphone className="w-5 h-5" />
+                              ))}
+                          </div>
+                          <p className="text-sm font-medium text-foreground leading-6">
+                            {title}
+                          </p>
                         </div>
-                        <p className="text-sm font-medium text-foreground leading-6">
-                          {title}
-                        </p>
-                      </div>
                       );
                     })}
 
@@ -1114,8 +1148,8 @@ export default function ProductDetail() {
                         if (!val) return null;
 
                         return (
-                          <div key={item.key} className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <div key={item.key} className="flex items-start gap-4 rounded-2xl p-3 hover:bg-slate-50 transition-colors">
+                            <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                               {item.icon}
                             </div>
                             <div>
@@ -1144,7 +1178,7 @@ export default function ProductDetail() {
                 </Button>
                 <Button
                   onClick={handleBookToOrder}
-                  className="w-full rounded-full bg-foreground text-background hover:bg-foreground/90 cursor-pointer"
+                  className="w-full rounded-full bg-[#ffd814] text-slate-900 hover:bg-[#f7ca00] cursor-pointer shadow-sm"
                 >
                   Book To Order
                 </Button>
@@ -1153,11 +1187,11 @@ export default function ProductDetail() {
           </div>
 
           {similarProducts.length > 0 && (
-            <div className="mt-12">
+            <div className="mt-12 bg-white rounded-3xl border border-border p-5 sm:p-6 shadow-sm">
               <h3 className="text-xl font-bold text-foreground mb-4">
                 More from {currentGroup?.brand}
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="flex gap-4 overflow-x-auto pb-2">
                 {similarProducts.map((item) => (
                   <button
                     key={item.groupId}
@@ -1167,12 +1201,12 @@ export default function ProductDetail() {
                         `/product/${String(item.category).toLowerCase() === "mobile" ? "new" : "accessory"}/${item.groupId}`,
                       );
                     }}
-                    className="cursor-pointer text-left border border-border rounded-xl p-3 hover:border-primary/50 transition-colors"
+                    className="cursor-pointer text-left border border-border rounded-2xl p-3 hover:border-blue-400 transition-colors bg-white min-w-[220px] md:min-w-[240px] shrink-0"
                   >
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="w-full h-28 object-contain bg-white rounded-lg mb-2"
+                      className="w-full h-36 object-contain bg-slate-50 rounded-xl mb-2"
                     />
                     <p className="text-sm font-semibold text-foreground line-clamp-2">
                       {item.name}
@@ -1187,11 +1221,11 @@ export default function ProductDetail() {
           )}
 
           {categoryProducts.length > 0 && (
-            <div className="mt-12">
+            <div className="mt-12 bg-white rounded-3xl border border-border p-5 sm:p-6 shadow-sm">
               <h3 className="text-xl font-bold text-foreground mb-4">
-                More from {currentGroup?.category}
+                Similar from {currentGroup?.category}
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="flex gap-4 overflow-x-auto pb-2">
                 {categoryProducts.map((item) => (
                   <button
                     key={item.groupId}
@@ -1201,12 +1235,12 @@ export default function ProductDetail() {
                         `/product/${String(item.category).toLowerCase() === "mobile" ? "new" : "accessory"}/${item.groupId}`,
                       );
                     }}
-                    className="text-left border border-border rounded-xl p-3 hover:border-primary/50 transition-colors"
+                    className="text-left border border-border rounded-2xl p-3 hover:border-blue-400 transition-colors bg-white min-w-[220px] md:min-w-[240px] shrink-0"
                   >
                     <img
                       src={item.image}
                       alt={item.name}
-                      className="w-full h-28 object-contain bg-white rounded-lg mb-2"
+                      className="w-full h-36 object-contain bg-slate-50 rounded-xl mb-2"
                     />
                     <p className="text-sm font-semibold text-foreground line-clamp-2">
                       {item.name}

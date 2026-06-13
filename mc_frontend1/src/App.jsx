@@ -16,7 +16,7 @@ import { PopupAd } from "@/components/PopupAd";
 import ScrollToTop from "@/components/ScrollToTop";
 import Index from "./pages/Index";
 import Phones from "./pages/Phones";
-import ProductDetail from "./pages/ProductDetail";
+import ProductDetailNew from "./pages/ProductDetailNew";
 import Admin from "./pages/Admin";
 import AdminNotifications from "./pages/AdminNotifications";
 import AdminAddProduct from "./pages/AdminAddProduct";
@@ -60,7 +60,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/phones/:type" element={<Phones />} />
-        <Route path="/product/:type/:id" element={<ProductDetail />} />
+        <Route path="/product/:type/:id" element={<ProductDetailNew />} />
         <Route path="/mobiles-accessories" element={<MobilesAccessories />} />
         <Route path="/offers" element={<Offers />} />
         <Route path="/offers/:id" element={<OfferDetail />} />
@@ -73,7 +73,7 @@ function AppContent() {
         <Route path="/brands/:brandName" element={<BrandPage />} />
         <Route path="/products" element={<Products />} />
         <Route path="/used-phones" element={<Products />} />
-        <Route path="/used-phones/:id" element={<ProductDetail />} />
+        <Route path="/used-phones/:id" element={<ProductDetailNew />} />
         <Route path="/all-products" element={<Products />} />
         <Route path="/best-sellers" element={<BestSellers />} />
         <Route path="/account" element={<AccountLayout />}>

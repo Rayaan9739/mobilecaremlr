@@ -1,6 +1,29 @@
 import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bold, Heading2, Image as ImageIcon, Italic, List, ListOrdered, Plus, Trash2 } from "lucide-react";
+import {
+  BadgePercent,
+  BatteryCharging,
+  Bold,
+  Camera,
+  CheckCircle2,
+  ChevronRight,
+  Cpu,
+  Droplets,
+  Heading2,
+  Image as ImageIcon,
+  Italic,
+  Layers3,
+  List,
+  ListOrdered,
+  Plus,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  Smartphone,
+  Star,
+  Trash2,
+  Zap,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +73,75 @@ type HighlightDraft = {
   text: string;
 };
 
+type ExchangeOfferDraft = {
+  enabled: boolean;
+  title: string;
+  details: string;
+};
+
+type HighlightSource =
+  | string
+  | {
+      featureIcon?: string;
+      featureText?: string;
+      icon?: string;
+      text?: string;
+    };
+
+const normalizeHighlightDrafts = (value: unknown): HighlightDraft[] => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") {
+          const text = item.trim();
+          return text
+            ? { id: createId("highlight"), icon: resolveHighlightIcon(text), text }
+            : null;
+        }
+
+        if (item && typeof item === "object") {
+          const source = item as HighlightSource;
+          const text = String(source.featureText || source.text || "").trim();
+          const icon = String(source.featureIcon || source.icon || resolveHighlightIcon(text) || "").trim();
+          return text
+            ? {
+                id: createId("highlight"),
+                icon: icon || resolveHighlightIcon(text),
+                text,
+              }
+            : null;
+        }
+
+        return null;
+      })
+      .filter(Boolean) as HighlightDraft[];
+  }
+
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const featureHighlights = obj.featureHighlights;
+    if (Array.isArray(featureHighlights)) {
+      return normalizeHighlightDrafts(featureHighlights);
+    }
+
+    return Object.entries(obj)
+      .filter(([key]) => key !== "exchangeOffer")
+      .map(([icon, text]) => {
+        const valueText = String(text || "").trim();
+        return valueText
+          ? {
+              id: createId("highlight"),
+              icon: String(icon || "").trim() || resolveHighlightIcon(valueText),
+              text: valueText,
+            }
+          : null;
+      })
+      .filter(Boolean) as HighlightDraft[];
+  }
+
+  return [];
+};
+
 const createId = (prefix: string) =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -78,6 +170,48 @@ const createHighlight = (): HighlightDraft => ({
   icon: "",
   text: "",
 });
+
+const highlightIconMap: Array<{ match: RegExp; icon: string }> = [
+  { match: /camera|photo|picture|selfie/i, icon: "Camera" },
+  { match: /battery|power|charge/i, icon: "BatteryCharging" },
+  { match: /processor|chip|cpu|performance|fast/i, icon: "Cpu" },
+  { match: /storage|rom|memory|space/i, icon: "Layers3" },
+  { match: /ram|speed|multitask/i, icon: "Zap" },
+  { match: /water|dust|ip/i, icon: "Droplets" },
+  { match: /security|safe|protect|shield/i, icon: "ShieldCheck" },
+  { match: /offer|discount|exchange|deal/i, icon: "BadgePercent" },
+  { match: /premium|pro|elite|flagship/i, icon: "Sparkles" },
+  { match: /display|screen|size|inch/i, icon: "Smartphone" },
+  { match: /sound|speaker|audio/i, icon: "CheckCircle2" },
+  { match: /battery life|long/i, icon: "BatteryCharging" },
+  { match: /shopping|cart|buy/i, icon: "ShoppingBag" },
+  { match: /rating|star|review/i, icon: "Star" },
+  { match: /speed|fast|boost/i, icon: "ChevronRight" },
+];
+
+const resolveHighlightIcon = (value: string) => {
+  const text = value.trim();
+  if (!text) return "";
+  const found = highlightIconMap.find((item) => item.match.test(text));
+  return found?.icon || "Sparkles";
+};
+
+const highlightIconComponents: Record<string, JSX.Element> = {
+  Camera: <Camera className="h-4 w-4" />,
+  BatteryCharging: <BatteryCharging className="h-4 w-4" />,
+  Cpu: <Cpu className="h-4 w-4" />,
+  Layers3: <Layers3 className="h-4 w-4" />,
+  Zap: <Zap className="h-4 w-4" />,
+  Droplets: <Droplets className="h-4 w-4" />,
+  ShieldCheck: <ShieldCheck className="h-4 w-4" />,
+  BadgePercent: <BadgePercent className="h-4 w-4" />,
+  Sparkles: <Sparkles className="h-4 w-4" />,
+  Smartphone: <Smartphone className="h-4 w-4" />,
+  CheckCircle2: <CheckCircle2 className="h-4 w-4" />,
+  ShoppingBag: <ShoppingBag className="h-4 w-4" />,
+  Star: <Star className="h-4 w-4" />,
+  ChevronRight: <ChevronRight className="h-4 w-4" />,
+};
 
 const calculateDiscount = (originalPrice: number, sellingPrice: number) =>
   originalPrice > sellingPrice
@@ -167,6 +301,11 @@ export default function AdminAddProduct({
   const [rating, setRating] = useState("");
   const [reviewCount, setReviewCount] = useState("");
   const [highlights, setHighlights] = useState<HighlightDraft[]>([createHighlight()]);
+  const [exchangeOffer, setExchangeOffer] = useState<ExchangeOfferDraft>({
+    enabled: false,
+    title: "Exchange Offer",
+    details: "",
+  });
   const [hasVariants, setHasVariants] = useState(() => Boolean(!editingProduct));
   const [storages, setStorages] = useState<StorageDraft[]>([createStorage()]);
   const [simpleImages, setSimpleImages] = useState<string[]>([]);
@@ -226,18 +365,17 @@ export default function AdminAddProduct({
     setDescriptionHtml(editingProduct.description || "");
     setRating(editingProduct.rating?.toString() || "");
     setReviewCount(editingProduct.reviewsCount?.toString() || "");
-    const existingHighlights = Array.isArray(editingProduct.highlights)
-      ? editingProduct.highlights.map((item: any) => ({
-          id: createId("highlight"),
-          icon: String(item?.featureIcon || item?.icon || ""),
-          text: String(item?.featureText || item?.text || item || ""),
-        }))
-      : Object.entries(editingProduct.highlights || {}).map(([icon, text]) => ({
-          id: createId("highlight"),
-          icon: String(icon || ""),
-          text: String(text || ""),
-        }));
+    const existingHighlights = normalizeHighlightDrafts(editingProduct.highlights);
     setHighlights(existingHighlights.length > 0 ? existingHighlights : [createHighlight()]);
+    const offerData =
+      editingProduct.highlights && typeof editingProduct.highlights === "object" && !Array.isArray(editingProduct.highlights)
+        ? (editingProduct.highlights as Record<string, any>).exchangeOffer || {}
+        : {};
+    setExchangeOffer({
+      enabled: Boolean(offerData?.enabled),
+      title: String(offerData?.title || "Exchange Offer"),
+      details: String(offerData?.details || ""),
+    });
     setHasVariants(false);
     setSimpleImages(editingProduct.images || (editingProduct.image ? [editingProduct.image] : []));
     setSimpleOriginalPrice(editingProduct.originalPrice?.toString() || "");
@@ -660,12 +798,21 @@ export default function AdminAddProduct({
     images: simpleImages,
     colors: [],
     colorVariants: [],
-    highlights: highlights
-      .filter((item) => item.icon.trim() || item.text.trim())
-      .map((item) => ({
-        featureIcon: item.icon.trim(),
-        featureText: item.text.trim(),
-      })),
+    highlights: {
+      featureHighlights: highlights
+        .filter((item) => item.icon.trim() || item.text.trim())
+        .map((item) => ({
+          featureIcon: item.icon.trim(),
+          featureText: item.text.trim(),
+        })),
+      exchangeOffer: exchangeOffer.enabled
+        ? {
+            enabled: true,
+            title: exchangeOffer.title.trim() || "Exchange Offer",
+            details: exchangeOffer.details.trim(),
+          }
+        : { enabled: false, title: "", details: "" },
+    },
     isFeatured: isFeatured || productSections.mostPopular || productSections.flagship,
     isWeeklyTrending: isWeeklyTrending || productSections.weeklyTrending,
     isBestSeller: productSections.bestSelling,
@@ -730,12 +877,21 @@ export default function AdminAddProduct({
           colorName: color.name.trim(),
           colorHex: color.hex,
           storageOption: storage.storage.trim(),
-          highlights: highlights
-            .filter((item) => item.icon.trim() || item.text.trim())
-            .map((item) => ({
-              featureIcon: item.icon.trim(),
-              featureText: item.text.trim(),
-            })),
+          highlights: {
+            featureHighlights: highlights
+              .filter((item) => item.icon.trim() || item.text.trim())
+              .map((item) => ({
+                featureIcon: item.icon.trim(),
+                featureText: item.text.trim(),
+              })),
+          },
+          exchangeOffer: exchangeOffer.enabled
+            ? {
+                enabled: true,
+                title: exchangeOffer.title.trim() || "Exchange Offer",
+                details: exchangeOffer.details.trim(),
+              }
+            : { enabled: false, title: "", details: "" },
           isFeatured: isFeatured || productSections.mostPopular || productSections.flagship,
           isWeeklyTrending: isWeeklyTrending || productSections.weeklyTrending,
           isBestSeller: productSections.bestSelling,
@@ -934,14 +1090,20 @@ export default function AdminAddProduct({
                   <div className="space-y-3">
                     {highlights.map((item) => (
                       <div key={item.id} className="grid gap-3 sm:grid-cols-[180px_1fr_auto]">
-                        <Input
-                          value={item.icon}
-                          onChange={(e) => updateHighlight(item.id, { icon: e.target.value })}
-                          placeholder="Feature Icon"
-                        />
+                        <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground">
+                          <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-100 text-slate-700">
+                            {highlightIconComponents[item.icon] || <Sparkles className="h-4 w-4" />}
+                          </span>
+                          <span className="truncate">{item.icon || "Auto icon"}</span>
+                        </div>
                         <Input
                           value={item.text}
-                          onChange={(e) => updateHighlight(item.id, { text: e.target.value })}
+                          onChange={(e) =>
+                            updateHighlight(item.id, {
+                              text: e.target.value,
+                              icon: resolveHighlightIcon(e.target.value),
+                            })
+                          }
                           placeholder="Feature Text"
                         />
                         <Button
@@ -956,6 +1118,45 @@ export default function AdminAddProduct({
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="space-y-3 rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label>Exchange Offer</Label>
+                    <Checkbox
+                      checked={exchangeOffer.enabled}
+                      onCheckedChange={(checked) =>
+                        setExchangeOffer((prev) => ({
+                          ...prev,
+                          enabled: Boolean(checked),
+                        }))
+                      }
+                    />
+                  </div>
+                  {exchangeOffer.enabled ? (
+                    <div className="space-y-3">
+                      <Input
+                        value={exchangeOffer.title}
+                        onChange={(e) =>
+                          setExchangeOffer((prev) => ({
+                            ...prev,
+                            title: e.target.value,
+                          }))
+                        }
+                        placeholder="Offer title"
+                      />
+                      <Input
+                        value={exchangeOffer.details}
+                        onChange={(e) =>
+                          setExchangeOffer((prev) => ({
+                            ...prev,
+                            details: e.target.value,
+                          }))
+                        }
+                        placeholder="Offer details"
+                      />
+                    </div>
+                  ) : null}
                 </div>
 
                 <div>

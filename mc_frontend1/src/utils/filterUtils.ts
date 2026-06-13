@@ -30,6 +30,12 @@ export interface FilterOptions {
 const normalizeCategoryValue = (value?: string) =>
   value ? value.toString().trim().toLowerCase().replace(/[\s-]+/g, "_") : "";
 
+const getSafeProductBrand = (product: Product) => {
+  const brand = String(product.brand || "").trim();
+  const name = String(product.name || "").trim();
+  return brand || name.split(/\s+/)[0] || "";
+};
+
 export const extractFilterOptions = (products: Product[]): FilterOptions => {
   const options: FilterOptions = {
     brands: [],
@@ -57,8 +63,8 @@ export const extractFilterOptions = (products: Product[]): FilterOptions => {
   };
 
   products.forEach(product => {
-    if (product.brand) sets.brands.add(product.brand);
-    else if (product.name) sets.brands.add(product.name.split(' ')[0]);
+    const safeBrand = getSafeProductBrand(product);
+    if (safeBrand) sets.brands.add(safeBrand);
 
     if (product.category) sets.category.add(product.category);
 
@@ -150,7 +156,7 @@ export const filterProducts = (products: Product[], filters: FilterState) => {
     }
 
     if (filters.brands && filters.brands.length > 0) {
-        const productBrand = product.brand || product.name.split(' ')[0];
+        const productBrand = getSafeProductBrand(product);
         if (!filters.brands.includes(productBrand)) return false;
     }
 
