@@ -54,10 +54,7 @@ export default function AdminNotifications() {
   };
 
   const normalizeWhatsAppNumber = (raw: string) => {
-    const digits = (raw || "")
-      .replace(/\s+/g, "")
-      .replace(/\+/g, "")
-      .replace(/\D/g, "");
+    const digits = (raw || "").replace(/\s+/g, "").replace(/\+/g, "").replace(/\D/g, "");
     if (!digits) return "";
     if (digits.length === 10) return `91${digits}`;
     if (digits.length > 10 && digits.startsWith("91")) return digits;
@@ -75,8 +72,7 @@ export default function AdminNotifications() {
     const data = getData(n);
     const type = normalizeType(n);
     const name = n?.name || data?.name || data?.fullName || "Customer";
-    const mobileNumber =
-      n?.mobileNumber || data?.mobileNumber || data?.phone || "";
+    const mobileNumber = n?.mobileNumber || data?.mobileNumber || data?.phone || "";
     const email = data?.email || "";
     return { data, type, name, mobileNumber, email };
   };
@@ -93,13 +89,11 @@ export default function AdminNotifications() {
         data?.productName || data?.itemName || data?.product?.name || "your product";
       const color = data?.color || data?.variant || "selected color";
       const storage = data?.storage || "selected storage";
-      const price =
-        formatCurrency(data?.price || data?.offerPrice) || "the shared amount";
+      const price = formatCurrency(data?.price || data?.offerPrice) || "the shared amount";
       return `Hi ${name}, your order for ${productName} (${color}, ${storage}) worth ${price} is received. We'll confirm shortly.`;
     }
     if (type === "CART_ORDER") {
-      const total =
-        formatCurrency(data?.total || data?.totalPrice) || "the shared amount";
+      const total = formatCurrency(data?.total || data?.totalPrice) || "the shared amount";
       return `Hi ${name}, we received your order. Total amount ${total}. We'll contact you soon.`;
     }
     return `Hi ${name}, thanks for reaching out to MobileCare. How can we help you further?`;
@@ -111,11 +105,7 @@ export default function AdminNotifications() {
     if (!waNumber) return;
     const text = encodeURIComponent(buildWhatsAppTemplate(n));
     markNotificationReplied(n.id);
-    window.open(
-      `https://wa.me/${waNumber}?text=${text}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
+    window.open(`https://wa.me/${waNumber}?text=${text}`, "_blank", "noopener,noreferrer");
   };
 
   const renderTypeDetails = (n: any) => {
@@ -151,9 +141,7 @@ export default function AdminNotifications() {
           <div>Name: {name || "-"}</div>
           <div>Phone: {mobileNumber || "-"}</div>
           <div className="font-semibold text-foreground pt-1">Product</div>
-          <div>
-            Product Name: {data?.productName || data?.itemName || data?.product?.name || "-"}
-          </div>
+          <div>Product Name: {data?.productName || data?.itemName || data?.product?.name || "-"}</div>
           <div>Color: {data?.color || data?.variant || "-"}</div>
           <div>Storage: {data?.storage || "-"}</div>
           <div>Price: {formatCurrency(data?.price || data?.offerPrice) || "-"}</div>
@@ -172,18 +160,32 @@ export default function AdminNotifications() {
           {items.length === 0 ? (
             <div>-</div>
           ) : (
-            <div className="space-y-1">
-              {items.map((item: any, idx: number) => (
-                <div key={idx}>
-                  • {item?.productName || item?.name || "Product"} —{" "}
-                  {item?.color || "-"} — {item?.storage || "-"} — {formatCurrency(item?.price) || "-"}
-                </div>
-              ))}
+            <div className="space-y-2">
+              {items.map((item: any, idx: number) => {
+                const itemName = item?.productName || item?.name || item?.title || "Product";
+                const productId = item?.productId || item?.variantId || "";
+                const line = [
+                  item?.color ? `Color: ${item.color}` : "",
+                  item?.storage ? `Storage: ${item.storage}` : "",
+                  item?.quantity ? `Qty: ${item.quantity}` : "",
+                  formatCurrency(item?.price) ? `Price: ${formatCurrency(item.price)}` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" • ");
+
+                return (
+                  <div key={idx} className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                    <div className="font-medium text-foreground">
+                      {idx + 1}. {itemName}
+                    </div>
+                    {productId ? <div className="text-gray-500">Product ID: {productId}</div> : null}
+                    {line ? <div className="text-gray-600">{line}</div> : null}
+                  </div>
+                );
+              })}
             </div>
           )}
-          <div className="pt-1">
-            Total: {formatCurrency(data?.total || data?.totalPrice) || "-"}
-          </div>
+          <div className="pt-1">Total: {formatCurrency(data?.total || data?.totalPrice) || "-"}</div>
         </div>
       );
     }
@@ -222,17 +224,13 @@ export default function AdminNotifications() {
             </Button>
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-foreground" />
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">
-                Notifications
-              </h1>
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">Notifications</h1>
             </div>
           </div>
 
           {notifications.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-muted-foreground text-sm md:text-base">
-                No notifications yet.
-              </p>
+              <p className="text-muted-foreground text-sm md:text-base">No notifications yet.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -272,11 +270,9 @@ export default function AdminNotifications() {
                                 : "Book a Repair"}
                         </span>
                       </div>
-
                       <div className="text-[11px] sm:text-xs text-gray-600 mt-1 truncate">
                         {getNotificationMeta(n).mobileNumber || "-"}
                       </div>
-
                       {renderTypeDetails(n)}
                     </div>
 
@@ -306,11 +302,7 @@ export default function AdminNotifications() {
           )}
 
           <div className="mt-8 text-center">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/admin")}
-            >
+            <Button type="button" variant="outline" onClick={() => navigate("/admin")}>
               Back to Admin
             </Button>
           </div>

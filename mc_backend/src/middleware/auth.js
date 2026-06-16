@@ -12,8 +12,10 @@ const auth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decodedUserId = decoded?.userId || decoded?.id || decoded?._id;
+    console.log("JWT payload:", decoded);
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: decodedUserId },
       select: {
         id: true,
         email: true,
@@ -28,10 +30,17 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ error: "Invalid token." });
     }
 
-    req.user = user;
+    // Normalize to support both legacy `.id` and requested `._id` access patterns.
+    req.user = {
+      ...user,
+      _id: user.id,
+      id: user.id,
+    };
+    console.log("JWT User:", req.user);
     next();
   } catch (error) {
-    res.status(401).json({ error: "Invalid token." });
+    console.error("Auth middleware error:", error.message);
+    return res.status(401).json({ error: "Invalid token." });
   }
 };
 

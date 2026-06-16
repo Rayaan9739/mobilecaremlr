@@ -283,116 +283,51 @@ router.get("/products", async (req, res) => {
 
 // Get all orders
 router.get("/orders", async (req, res) => {
-  const pool = new Pool(poolConfig());
-  const client = await pool.connect();
   try {
     const { status, page = 1, limit = 20 } = req.query;
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const limitNum = Math.max(parseInt(limit, 10) || 20, 1);
-    const offset = (pageNum - 1) * limitNum;
-    const values = [];
-    let whereSql = "";
+    const where = {};
+    if (status) where.status = status;
 
-    if (status) {
-      values.push(status);
-      whereSql = `WHERE o.status = $${values.length}`;
-    }
-
-    const orderColumnsResult = await client.query(
-      `SELECT column_name FROM information_schema.columns WHERE table_name = 'orders'`,
-    );
-    const orderColumns = new Set(orderColumnsResult.rows.map((row) => row.column_name));
-    const addressSelect = orderColumns.has("addressText")
-      ? `o."addressText"`
-      : `NULL AS "addressText"`;
-
-    const countResult = await client.query(
-      `SELECT COUNT(*)::int AS count FROM orders o ${whereSql}`,
-      values,
-    );
-    const total = Number(countResult.rows[0]?.count || 0);
-
-    values.push(limitNum, offset);
-    const ordersResult = await client.query(
-      `
-        SELECT
-          o.id,
-          o.total,
-          o.status,
-          o."createdAt",
-          ${addressSelect},
-          u.id AS "userId",
-          u."fullName",
-          u.email,
-          u.phone
-        FROM orders o
-        LEFT JOIN users u ON u.id = o."userId"
-        ${whereSql}
-        ORDER BY o."createdAt" DESC
-        LIMIT $${values.length - 1} OFFSET $${values.length}
-      `,
-      values,
-    );
-
-    const orderIds = ordersResult.rows.map((order) => order.id);
-    let items = [];
-    if (orderIds.length > 0) {
-      const itemsResult = await client.query(
-        `
-          SELECT
-            oi.id,
-            oi."orderId",
-            oi.quantity,
-            oi.price,
-            p.id AS "productId",
-            p.name AS "productName",
-            p.images AS "productImages",
-            p.brand AS "productBrand",
-            p.category AS "productCategory"
-          FROM order_items oi
-          LEFT JOIN products p ON p.id = oi."productId"
-          WHERE oi."orderId" = ANY($1)
-          ORDER BY oi.id
-        `,
-        [orderIds],
-      );
-      items = itemsResult.rows;
-    }
-
-    const itemsByOrder = new Map();
-    items.forEach((item) => {
-      const existing = itemsByOrder.get(item.orderId) || [];
-      const images = Array.isArray(item.productImages) ? item.productImages : [];
-      existing.push({
-        id: item.id,
-        quantity: item.quantity,
-        price: item.price,
-        product: {
-          id: item.productId,
-          name: item.productName,
-          image: images[0] || "",
-          images,
-          brand: item.productBrand,
-          category: item.productCategory,
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          total: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          addressText: true,
+          user: {
+            select: { id: true, fullName: true, email: true, phone: true },
+          },
+          items: {
+            select: {
+              id: true,
+              quantity: true,
+              price: true,
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  images: true,
+                  brand: true,
+                  category: true,
+                  storageOption: true,
+                  colorName: true,
+                },
+              },
+            },
+          },
         },
-      });
-      itemsByOrder.set(item.orderId, existing);
-    });
-
-    const orders = ordersResult.rows.map((order) => ({
-      id: order.id,
-      total: order.total,
-      status: order.status,
-      createdAt: order.createdAt,
-      addressText: order.addressText,
-      user: {
-        id: order.userId,
-        fullName: order.fullName,
-        email: order.email,
-        phone: order.phone,
-      },
-      items: itemsByOrder.get(order.id) || [],
-    }));
+      }),
+      prisma.order.count({ where }),
+    ]);
 
     res.json({
       orders,
@@ -406,9 +341,6 @@ router.get("/orders", async (req, res) => {
   } catch (error) {
     console.error("Get admin orders error:", error);
     res.status(500).json({ error: "Internal server error" });
-  } finally {
-    client.release();
-    await pool.end();
   }
 });
 
@@ -426,7 +358,7 @@ router.patch("/orders/:id/status", async (req, res) => {
       data: { status },
       include: {
         user: {
-          select: { fullName: true, email: true },
+          select: { id: true, fullName: true, email: true, phone: true },
         },
       },
     });

@@ -1,8 +1,13 @@
 const prisma = require("../utils/prisma");
 
+const getAuthUserId = (user) => user?._id || user?.id || user?.userId || null;
+
 const placeOrder = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = getAuthUserId(req.user);
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
     const { items } = req.body; // items: [{ productId, quantity }]
 
     let total = 0;
@@ -52,24 +57,19 @@ const placeOrder = async (req, res) => {
       },
     });
 
-    // Reduce stock
-    for (const item of items) {
-      await prisma.product.update({
-        where: { id: item.productId },
-        data: { stock: { decrement: item.quantity } },
-      });
-    }
-
     res.status(201).json(order);
   } catch (error) {
-    console.error(error);
+    console.error("Place order error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
 const getUserOrders = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = getAuthUserId(req.user);
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
 
     const orders = await prisma.order.findMany({
       where: { userId },
@@ -85,7 +85,7 @@ const getUserOrders = async (req, res) => {
 
     res.json(orders);
   } catch (error) {
-    console.error(error);
+    console.error("Get user orders error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };

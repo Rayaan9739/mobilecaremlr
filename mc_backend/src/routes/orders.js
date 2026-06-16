@@ -5,6 +5,13 @@ const prisma = require("../utils/prisma");
 const { normalizePhoneNumber } = require("../utils/phone");
 
 const router = express.Router();
+const getAuthUserId = (user) => user?._id || user?.id || user?.userId || null;
+const isAdminUser = (user) =>
+  Boolean(
+    user &&
+      String(user.role || "").toUpperCase() === "ADMIN" &&
+      String(user.email || "").toLowerCase() === "admin@mobilecare.com",
+  );
 
 // Create order (authenticated users only)
 router.post("/", auth, async (req, res) => {
@@ -23,6 +30,10 @@ router.post("/", auth, async (req, res) => {
     } = value;
 
     const normalizedUserPhone = normalizePhoneNumber(req?.user?.phone);
+    const userId = getAuthUserId(req.user);
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
     if (!normalizedUserPhone) {
       return res.status(422).json({ error: "Phone number is required" });
     }
@@ -40,7 +51,7 @@ router.post("/", auth, async (req, res) => {
 
       if (setAsDefaultAddress) {
         await prisma.user.update({
-          where: { id: req.user.id },
+          where: { id: userId },
           data: {
             addressLine1: typedAddress,
             isDefaultAddress: true,
@@ -49,7 +60,7 @@ router.post("/", auth, async (req, res) => {
       }
     } else {
       const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
+        where: { id: userId },
         select: {
           addressLine1: true,
           addressLine2: true,
@@ -120,6 +131,7 @@ router.post("/", auth, async (req, res) => {
       });
       requestedVariantMeta.push({
         productId: product.id,
+        name: product.name,
         quantity: item.quantity,
         color: item.color || "",
         storage: item.storage || "",
@@ -137,7 +149,7 @@ router.post("/", auth, async (req, res) => {
     const createdOrder = await prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
         data: {
-          userId: req.user.id,
+          userId,
           total,
           status: "CONFIRMED",
           addressText: resolvedAddressText,
@@ -148,33 +160,20 @@ router.post("/", auth, async (req, res) => {
           },
         },
       });
-
-      // Update product stock
-      for (const item of items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            stock: {
-              decrement: item.quantity,
-            },
-          },
-        });
-      }
       return newOrder;
     });
 
     // Create admin notification for new order (cart order)
     let notificationCreated = false;
     try {
-      const metaByProductId = new Map(
-        requestedVariantMeta.map((item) => [String(item.productId), item]),
-      );
+      const metaByProductId = new Map(requestedVariantMeta.map((item) => [String(item.productId), item]));
       const detailedItems = items.map((item) => {
         const meta = metaByProductId.get(String(item.productId)) || {};
-        const unitPrice = Number(item.price || 0);
+        const unitPrice = Number(item.price || meta.price || 0);
         const lineTotal = Number(unitPrice) * Number(item.quantity || 0);
         return {
-          name: String(item.name || meta.name || item.productId || "Product"),
+          name: String(meta.name || item.name || item.productId || "Product"),
+          productId: String(item.productId),
           quantity: item.quantity,
           color: meta.color || "",
           storage: meta.storage || "",
@@ -211,7 +210,8 @@ router.post("/", auth, async (req, res) => {
         data: {
           orderId: createdOrder.id,
           mobileNumber: normalizedUserPhone,
-          items: detailedItems.map((item) => ({
+            items: detailedItems.map((item) => ({
+            productId: item.productId,
             name: item.name,
             quantity: item.quantity,
             color: item.color,
@@ -273,72 +273,160 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-// Get user orders
-router.get("/my-orders", auth, async (req, res) => {
+const orderItemSelect = {
+  id: true,
+  quantity: true,
+  price: true,
+  product: {
+    select: {
+      id: true,
+      name: true,
+      images: true,
+      storageOption: true,
+      colorName: true,
+      category: true,
+      brand: true,
+      description: true,
+      storageVariants: true,
+    },
+  },
+};
+
+const getUserOrderList = async (req, res) => {
   try {
+    const userId = getAuthUserId(req.user);
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    console.log("Fetching orders for user:", { userId, user: req.user });
+
     const orders = await prisma.order.findMany({
-      where: { userId: req.user.id },
+      where: { userId },
       select: {
         id: true,
         status: true,
         createdAt: true,
+        updatedAt: true,
         total: true,
+        addressText: true,
         items: {
-          select: {
-            id: true,
-            quantity: true,
-            product: {
-              select: {
-                id: true,
-                name: true,
-                images: true,
-              },
-            },
-          },
+          select: orderItemSelect,
+        },
+        user: {
+          select: { id: true, fullName: true, email: true, phone: true },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
+    if (!orders.length) {
+      return res.json([]);
+    }
+
     res.json(orders);
   } catch (error) {
     console.error("Get orders error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch user orders",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+const getAllOrders = async (req, res) => {
+  try {
+    const { page = 1, limit = 50, status } = req.query;
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNum = Math.max(parseInt(limit, 10) || 50, 1);
+    const where = {};
+    if (status) where.status = status;
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          total: true,
+          addressText: true,
+          user: {
+            select: { id: true, fullName: true, email: true, phone: true },
+          },
+          items: {
+            select: orderItemSelect,
+          },
+        },
+      }),
+      prisma.order.count({ where }),
+    ]);
+
+    res.json({
+      orders,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.max(Math.ceil(total / limitNum), 1),
+      },
+    });
+  } catch (error) {
+    console.error("Get all orders error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
-});
+};
+
+const updateOrderStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const allowed = ["PENDING", "CONFIRMED", "PROCESSING", "COMPLETED", "CANCELLED"];
+
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const order = await prisma.order.update({
+      where: { id },
+      data: { status },
+      include: {
+        user: { select: { id: true, fullName: true, email: true, phone: true } },
+        items: { include: { product: true } },
+      },
+    });
+
+    res.json({ message: "Order status updated successfully", order });
+  } catch (error) {
+    console.error("Update order status error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Get user orders
+router.get("/my-orders", auth, getUserOrderList);
 
 // Get user orders (alias)
-router.get("/my", auth, async (req, res) => {
-  try {
-    const orders = await prisma.order.findMany({
-      where: { userId: req.user.id },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        total: true,
-        items: {
-          select: {
-            id: true,
-            quantity: true,
-            product: {
-              select: {
-                id: true,
-                name: true,
-                images: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+router.get("/my", auth, getUserOrderList);
 
-    res.json(orders);
-  } catch (error) {
-    console.error("Get orders error:", error);
-    res.status(500).json({ error: "Internal server error" });
+// Admin order management
+router.get("/admin", auth, async (req, res, next) => {
+  if (!isAdminUser(req.user)) {
+    return res.status(403).json({ error: "Access denied. Admin privileges required." });
   }
+  return getAllOrders(req, res, next);
+});
+
+router.patch("/admin/:id/status", auth, async (req, res, next) => {
+  if (!isAdminUser(req.user)) {
+    return res.status(403).json({ error: "Access denied. Admin privileges required." });
+  }
+  return updateOrderStatus(req, res, next);
 });
 
 // Get single order
@@ -347,7 +435,7 @@ router.get("/:id", auth, async (req, res) => {
     const order = await prisma.order.findFirst({
       where: {
         id: req.params.id,
-        userId: req.user.id,
+        userId: getAuthUserId(req.user),
       },
       include: {
         items: {
