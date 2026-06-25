@@ -38,6 +38,7 @@ import {
 } from "@/contexts/AdminContext";
 import { useProducts, ProductProvider } from "@/contexts/ProductContext";
 import api from "@/lib/api";
+import { invalidateCategoryCache } from "@/utils/imageSync";
 import {
   Plus,
   Pencil,
@@ -114,6 +115,7 @@ type ProductFormData = Omit<AdminProduct, "id"> & {
 type VariantColorDraft = {
   name: string;
   hex: string;
+  dotImage: string;
   image: string;
   images: string[];
   modelUrl: string;
@@ -260,7 +262,7 @@ function ProductForm({
   );
 
   const [colorVariants, setColorVariants] = useState<
-    { name: string; hex: string; image: string }[]
+    { name: string; hex: string; dotImage: string; image: string }[]
   >(product?.colorVariants || []);
   const [isBestSeller, setIsBestSeller] = useState(
     product?.isBestSeller || false,
@@ -567,6 +569,7 @@ function ProductForm({
         {
           name: color.name.trim(),
           hex: color.hex || "#000000",
+          dotImage: color.dotImage || color.image || "",
           image: resolvedImages[0] || "",
           images: resolvedImages,
         },
@@ -575,7 +578,9 @@ function ProductForm({
         {
           name: color.name.trim(),
           hex: color.hex || "#000000",
+          dotImage: color.dotImage || color.image || "",
           image: resolvedImages[0] || "",
+          images: resolvedImages,
         },
       ],
       colorName: color.name.trim(),
@@ -697,6 +702,7 @@ function ProductForm({
         {
           name: "",
           hex: "#000000",
+          dotImage: "",
           image: "",
           images: [],
           modelUrl: "",
@@ -734,6 +740,7 @@ function ProductForm({
         {
           name: "",
           hex: "#000000",
+          dotImage: "",
           image: "",
           images: [],
           modelUrl: "",
@@ -832,6 +839,29 @@ function ProductForm({
         ),
       }));
       toast.success("Variant image uploaded successfully");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Image upload failed",
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const uploadVariantColorDotImage = async (
+    file: File,
+    colorIndex: number,
+  ) => {
+    try {
+      setIsUploading(true);
+      const url = await uploadImage(file);
+      setVariantDraft((prev) => ({
+        ...prev,
+        colors: prev.colors.map((color, index) =>
+          index === colorIndex ? { ...color, dotImage: url } : color,
+        ),
+      }));
+      toast.success("Color dot image uploaded successfully");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Image upload failed",
@@ -1329,6 +1359,37 @@ function ProductForm({
                   />
                   Color In Stock
                 </label>
+              </div>
+
+              <div>
+                <Label>Color Dot Image</Label>
+                <div className="mt-2 flex items-center gap-3">
+                  {color.dotImage ? (
+                    <img
+                      src={color.dotImage}
+                      alt=""
+                      className="h-14 w-14 rounded-full border object-cover"
+                    />
+                  ) : (
+                    <span
+                      className="h-14 w-14 rounded-full border"
+                      style={{ backgroundColor: color.hex }}
+                    />
+                  )}
+                  <Label className="cursor-pointer rounded-md border border-border px-3 py-2 text-sm">
+                    Upload 1:1 Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadVariantColorDotImage(file, index);
+                      }}
+                      disabled={isUploading}
+                    />
+                  </Label>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
@@ -4442,6 +4503,7 @@ function CategoryManager() {
       name: displayName.toUpperCase().replace(/\s+/g, "_"),
       displayName: displayName.trim(),
       icon,
+      image: icon,
     };
 
     try {
@@ -4459,6 +4521,7 @@ function CategoryManager() {
       toast.success("Category saved");
       reset();
       fetchCategories();
+      invalidateCategoryCache();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save category");
     }
@@ -4517,8 +4580,15 @@ function CategoryManager() {
           <Card key={category.id} className="border-border/50">
             <CardContent className="p-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 flex-1">
-                {/* Icon display */}
-                <div className="w-12 h-12 rounded-lg bg-secondary overflow-hidden flex-shrink-0" />
+                <div className="w-12 h-12 rounded-lg bg-secondary overflow-hidden flex-shrink-0 border border-border">
+                  {category.icon ? (
+                    <img
+                      src={category.icon}
+                      alt={category.displayName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : null}
+                </div>
                 <h3 className="font-semibold">{category.displayName}</h3>
               </div>
               <div className="flex gap-2">
@@ -4529,6 +4599,7 @@ function CategoryManager() {
                   onClick={() => {
                     setEditingId(category.id);
                     setDisplayName(category.displayName);
+                    setIcon(category.icon || category.image || "");
                   }}
                 >
                   <Pencil className="w-4 h-4" />
@@ -4541,6 +4612,7 @@ function CategoryManager() {
                     if (!confirm("Delete this category?")) return;
                     await api(`/categories/${category.id}`, { method: "DELETE" });
                     fetchCategories();
+                    invalidateCategoryCache();
                   }}
                 >
                   <Trash2 className="w-4 h-4" />

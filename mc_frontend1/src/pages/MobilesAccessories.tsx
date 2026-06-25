@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import api from "@/lib/api";
 
-import { Product } from "@/contexts/ProductContext";
+import { Product, useProducts } from "@/contexts/ProductContext";
 import { groupProductsByName, ProductGroup } from "@/utils/productVariants";
 
 interface ProductsResponse {
@@ -110,8 +110,22 @@ const featuredCategories = [
 const categoryToSlug = (category: string) =>
   category.toLowerCase().replace(/[\s-]+/g, "_");
 
+const scrollCategoryName = (name: string) =>
+  name.toLowerCase().replace(/[\s-]+/g, "_");
+
+const normalizeCategoryName = (value: string) =>
+  value.toLowerCase().replace(/[\s-]+/g, "_").trim();
+
+const categoryDisplayName = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .trim();
+
 export default function MobilesAccessories() {
   const navigate = useNavigate();
+  const { categories: liveCategories } = useProducts();
   // scroll position state for category carousel
   const [categoryScrollPosition, setCategoryScrollPosition] = useState(0);
   // selected budget label used for highlighting
@@ -123,10 +137,69 @@ export default function MobilesAccessories() {
   });
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const categoriesContainerRef = useRef<HTMLDivElement | null>(null);
+  const autoScrollRef = useRef<number | null>(null);
+  const scrollLockRef = useRef(false);
+  const isHoveredRef = useRef(false);
   // Category counts for trending categories
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>(
     {},
   );
+
+  const liveTrendingCategories = useMemo(() => {
+    const staticByCategory = new Map(
+      trendingCategories.map((item) => [normalizeCategoryName(item.category), item]),
+    );
+
+    const merged = (liveCategories || [])
+      .map((category) => {
+        const normalized = normalizeCategoryName(category.name);
+        const base = staticByCategory.get(normalized);
+        return {
+          name: category.displayName || category.name,
+          category: category.name,
+          icon: base?.icon || Package,
+          count: categoryCounts[category.name] ?? 0,
+          isAccessories: normalized === "accessories",
+          image: category.image || category.icon || "",
+        };
+      })
+      .filter((item) => Boolean(item.name));
+
+    const existing = new Set(merged.map((item) => normalizeCategoryName(item.category)));
+    const fallbackStatic = trendingCategories
+      .filter((item) => !existing.has(normalizeCategoryName(item.category)))
+      .map((item) => ({
+        ...item,
+        count: categoryCounts[item.category] ?? 0,
+        image: "",
+      }));
+
+    return [...merged, ...fallbackStatic];
+  }, [categoryCounts, liveCategories]);
+
+  useEffect(() => {
+    const container = categoriesContainerRef.current;
+    if (!container) return;
+
+    const step = () => {
+      if (!isHoveredRef.current) {
+        const maxScroll = container.scrollWidth - container.clientWidth;
+        if (maxScroll > 0) {
+          container.scrollLeft += 1;
+          if (container.scrollLeft >= maxScroll) {
+            container.scrollLeft = 0;
+          }
+        }
+      }
+      autoScrollRef.current = window.setTimeout(step, 25);
+    };
+
+    autoScrollRef.current = window.setTimeout(step, 25);
+    return () => {
+      if (autoScrollRef.current) window.clearTimeout(autoScrollRef.current);
+    };
+  }, []);
 
   // Fetch category counts
   useEffect(() => {
@@ -141,10 +214,19 @@ export default function MobilesAccessories() {
         const counts: Record<string, number> = {};
 
         // Calculate counts from all products
-        for (const cat of trendingCategories) {
+        const categorySource = liveCategories.length > 0 ? liveCategories : trendingCategories.map((item) => ({
+          name: item.category,
+          displayName: item.name,
+          image: "",
+          icon: "",
+        }));
+
+        for (const cat of categorySource) {
+          const categoryKey = normalizeCategoryName(cat.name || cat.displayName || "");
+          const displayKey = String(cat.displayName || cat.name || "");
           if (cat.isAccessories) {
             // Accessories: exclude MOBILE and USED_PHONE categories
-            counts[cat.category] = allProducts.filter((p) => {
+            counts[categoryKey] = allProducts.filter((p) => {
               const category = p.category?.toUpperCase().replace(/[\s-]+/g, '_');
               return (
                 category !== "MOBILE" &&
@@ -152,17 +234,17 @@ export default function MobilesAccessories() {
                 category !== "USED_PHONES"
               );
             }).length;
-          } else if (cat.category === 'USED_PHONE') {
+          } else if (categoryKey === 'used_phone') {
             // Used Phones: match USED_PHONE category
-            counts[cat.category] = allProducts.filter((p) => {
+            counts[categoryKey] = allProducts.filter((p) => {
               const category = p.category?.toUpperCase().replace(/[\s-]+/g, '_');
               return category === "USED_PHONE" || category === "USED_PHONES";
             }).length;
           } else {
             // Regular category filtering with normalization
-            counts[cat.category] = allProducts.filter((p) => {
+            counts[categoryKey] = allProducts.filter((p) => {
               const category = p.category?.toUpperCase().replace(/[\s-]+/g, '_');
-              return category === cat.category;
+              return category === categoryKey.toUpperCase();
             }).length;
           }
         }
@@ -196,17 +278,25 @@ export default function MobilesAccessories() {
   }, []);
 
   const scrollCategories = (direction: "left" | "right") => {
-    const container = document.getElementById("categories-container");
-    if (container) {
-      const scrollAmount = 300;
-      const newPosition =
-        direction === "left"
-          ? Math.max(0, categoryScrollPosition - scrollAmount)
-          : categoryScrollPosition + scrollAmount;
+    const container = categoriesContainerRef.current;
+    if (!container || scrollLockRef.current) return;
 
-      container.scrollTo({ left: newPosition, behavior: "smooth" });
-      setCategoryScrollPosition(newPosition);
-    }
+    scrollLockRef.current = true;
+    const scrollAmount = Math.max(260, container.clientWidth * 0.75);
+    const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
+    const currentLeft = container.scrollLeft;
+    const nextLeft =
+      direction === "left"
+        ? Math.max(0, currentLeft - scrollAmount)
+        : currentLeft + scrollAmount >= maxScroll
+          ? 0
+          : currentLeft + scrollAmount;
+
+    container.scrollTo({ left: nextLeft, behavior: "smooth" });
+    setCategoryScrollPosition(nextLeft);
+    window.setTimeout(() => {
+      scrollLockRef.current = false;
+    }, 450);
   };
 
   const groupedProducts = useMemo(
@@ -289,10 +379,17 @@ export default function MobilesAccessories() {
             <div className="relative">
               <div
                 id="categories-container"
+                ref={categoriesContainerRef}
                 className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory pb-2"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                onMouseEnter={() => {
+                  isHoveredRef.current = true;
+                }}
+                onMouseLeave={() => {
+                  isHoveredRef.current = false;
+                }}
               >
-                {trendingCategories.map((cat, index) => (
+                {liveTrendingCategories.map((cat, index) => (
                   <motion.div
                     key={cat.name}
                     initial={{ opacity: 0, y: 20 }}
@@ -304,15 +401,23 @@ export default function MobilesAccessories() {
                         console.log('🏷️ Category clicked:', cat.name, '-> /accessories');
                         navigate('/accessories');
                       } else {
-                        const categoryParam = cat.category.toLowerCase();
+                        const categoryParam = scrollCategoryName(cat.category);
                         console.log('🏷️ Category clicked:', cat.name, '-> category:', categoryParam);
                         navigate(`/products?category=${categoryParam}`);
                       }
                     }}
                     className="min-w-[140px] bg-card rounded-2xl p-6 text-center hover:shadow-elevated transition-all cursor-pointer group snap-start"
                   >
-                    <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <cat.icon className="w-8 h-8 text-primary" />
+                    <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors overflow-hidden">
+                      {cat.image ? (
+                        <img
+                          src={cat.image}
+                          alt={cat.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <cat.icon className="w-8 h-8 text-primary" />
+                      )}
                     </div>
                     <h3 className="font-semibold text-foreground">
                       {cat.name}

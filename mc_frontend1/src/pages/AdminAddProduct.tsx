@@ -67,6 +67,14 @@ type StorageDraft = {
   colors: ColorDraft[];
 };
 
+type SimpleColorDraft = {
+  name: string;
+  hex: string;
+  dotImage: string;
+  image: string;
+  images: string[];
+};
+
 type HighlightDraft = {
   id: string;
   icon: string;
@@ -170,6 +178,135 @@ const createHighlight = (): HighlightDraft => ({
   icon: "",
   text: "",
 });
+
+const normalizeCategory = (value: string) =>
+  value.trim().toUpperCase().replace(/[\s-]+/g, "_");
+
+const categoryFormConfig: Record<
+  string,
+  {
+    simpleLabel: string;
+    simpleHint: string;
+    showStorageVariants: boolean;
+    highlightLabel: string;
+    namePlaceholder: string;
+    descriptionPlaceholder: string;
+    pricePlaceholder: string;
+    originalPricePlaceholder: string;
+    simpleImageLabel: string;
+  }
+> = {
+  MOBILE: {
+    simpleLabel: "Phone Details",
+    simpleHint: "Phones usually use storage variants and per-color product cards.",
+    showStorageVariants: true,
+    highlightLabel: "Phone Highlights",
+    namePlaceholder: "iPhone 15 Pro",
+    descriptionPlaceholder: "Describe the phone, chipset, display, battery, and cameras.",
+    pricePlaceholder: "99999",
+    originalPricePlaceholder: "109999",
+    simpleImageLabel: "Phone Images",
+  },
+  USED_PHONE: {
+    simpleLabel: "Used Phone Details",
+    simpleHint: "Used phones can also use storage variants if needed.",
+    showStorageVariants: true,
+    highlightLabel: "Condition Highlights",
+    namePlaceholder: "Samsung Galaxy S23 Used",
+    descriptionPlaceholder: "Mention grade, battery health, cosmetic condition, and warranty.",
+    pricePlaceholder: "59999",
+    originalPricePlaceholder: "64999",
+    simpleImageLabel: "Phone Images",
+  },
+  ACCESSORIES: {
+    simpleLabel: "Accessory Details",
+    simpleHint: "Accessories are usually listed as a single product without storage variants.",
+    showStorageVariants: false,
+    highlightLabel: "Accessory Highlights",
+    namePlaceholder: "Type-C Fast Charger",
+    descriptionPlaceholder: "Describe compatibility, material, pack contents, and warranty.",
+    pricePlaceholder: "999",
+    originalPricePlaceholder: "1299",
+    simpleImageLabel: "Accessory Images",
+  },
+  CHARGERS: {
+    simpleLabel: "Charger Details",
+    simpleHint: "Use simple product fields for chargers and adapters.",
+    showStorageVariants: false,
+    highlightLabel: "Charger Highlights",
+    namePlaceholder: "25W Super Fast Charger",
+    descriptionPlaceholder: "Add charging wattage, supported devices, and cable details.",
+    pricePlaceholder: "1299",
+    originalPricePlaceholder: "1599",
+    simpleImageLabel: "Charger Images",
+  },
+  CABLES: {
+    simpleLabel: "Cable Details",
+    simpleHint: "Cable products usually need a simple listing.",
+    showStorageVariants: false,
+    highlightLabel: "Cable Highlights",
+    namePlaceholder: "USB-C to USB-C Cable",
+    descriptionPlaceholder: "Specify length, data speed, charging speed, and compatibility.",
+    pricePlaceholder: "499",
+    originalPricePlaceholder: "699",
+    simpleImageLabel: "Cable Images",
+  },
+  HEADPHONES: {
+    simpleLabel: "Headphone Details",
+    simpleHint: "Headphones do not need storage variants.",
+    showStorageVariants: false,
+    highlightLabel: "Headphone Highlights",
+    namePlaceholder: "Wireless Headphones",
+    descriptionPlaceholder: "Describe sound quality, battery backup, connectivity, and mic support.",
+    pricePlaceholder: "1999",
+    originalPricePlaceholder: "2499",
+    simpleImageLabel: "Headphone Images",
+  },
+  SPEAKERS: {
+    simpleLabel: "Speaker Details",
+    simpleHint: "Speakers are usually single-product listings.",
+    showStorageVariants: false,
+    highlightLabel: "Speaker Highlights",
+    namePlaceholder: "Bluetooth Speaker",
+    descriptionPlaceholder: "Mention output wattage, battery life, waterproof rating, and size.",
+    pricePlaceholder: "1499",
+    originalPricePlaceholder: "1999",
+    simpleImageLabel: "Speaker Images",
+  },
+  SMART_WATCH: {
+    simpleLabel: "Smart Watch Details",
+    simpleHint: "Smart watches are usually simple listings.",
+    showStorageVariants: false,
+    highlightLabel: "Watch Highlights",
+    namePlaceholder: "Smart Watch",
+    descriptionPlaceholder: "Mention display size, health features, battery backup, and connectivity.",
+    pricePlaceholder: "3499",
+    originalPricePlaceholder: "4999",
+    simpleImageLabel: "Watch Images",
+  },
+  CAMERA: {
+    simpleLabel: "Camera Details",
+    simpleHint: "Camera products are best added as simple listings.",
+    showStorageVariants: false,
+    highlightLabel: "Camera Highlights",
+    namePlaceholder: "Action Camera",
+    descriptionPlaceholder: "Mention resolution, lens quality, battery, and storage support.",
+    pricePlaceholder: "7999",
+    originalPricePlaceholder: "9999",
+    simpleImageLabel: "Camera Images",
+  },
+  GAMING: {
+    simpleLabel: "Gaming Accessory Details",
+    simpleHint: "Gaming products generally use the simple form.",
+    showStorageVariants: false,
+    highlightLabel: "Gaming Highlights",
+    namePlaceholder: "Gaming Controller",
+    descriptionPlaceholder: "Describe compatibility, build quality, performance, and warranty.",
+    pricePlaceholder: "2499",
+    originalPricePlaceholder: "2999",
+    simpleImageLabel: "Gaming Product Images",
+  },
+};
 
 const highlightIconMap: Array<{ match: RegExp; icon: string }> = [
   { match: /camera|photo|picture|selfie/i, icon: "Camera" },
@@ -478,6 +615,12 @@ export default function AdminAddProduct({
     [brandOptions],
   );
 
+  const normalizedCategory = normalizeCategory(category);
+  const activeCategoryConfig =
+    categoryFormConfig[normalizedCategory] || categoryFormConfig.ACCESSORIES;
+  const showStorageVariants = activeCategoryConfig.showStorageVariants;
+  const useVariantForm = showStorageVariants && hasVariants;
+
   const formatCommand = (command: string, value?: string) => {
     document.execCommand(command, false, value);
     setDescriptionHtml(descriptionRef.current?.innerHTML || "");
@@ -734,7 +877,7 @@ export default function AdminAddProduct({
       return false;
     }
 
-    if (!hasVariants) {
+    if (!useVariantForm) {
       if (!simpleSellingPrice || Number.isNaN(Number(simpleSellingPrice))) {
         toast.error("Selling price is required");
         return false;
@@ -915,7 +1058,7 @@ export default function AdminAddProduct({
     try {
       setSubmitting(true);
 
-      const productsToCreate = hasVariants
+      const productsToCreate = useVariantForm
         ? buildVariantProducts()
         : [buildSingleProductPayload()];
 
@@ -925,7 +1068,7 @@ export default function AdminAddProduct({
       }
 
       if (editingProduct) {
-        const productsToUpdate = hasVariants
+        const productsToUpdate = useVariantForm
           ? buildVariantProducts()
           : [buildSingleProductPayload()];
 
@@ -991,7 +1134,7 @@ export default function AdminAddProduct({
           <div>
             <h1 className="text-3xl font-bold text-foreground">Add Product</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Storage variants render first. Add colors under each storage.
+              {activeCategoryConfig.simpleHint}
             </p>
           </div>
           <div className="flex gap-2">
@@ -1016,6 +1159,7 @@ export default function AdminAddProduct({
                   <Input
                     value={productName}
                     onChange={(e) => setProductName(e.target.value)}
+                    placeholder={activeCategoryConfig.namePlaceholder}
                   />
                 </div>
 
@@ -1081,7 +1225,7 @@ export default function AdminAddProduct({
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <Label>Feature Highlights</Label>
+                    <Label>{activeCategoryConfig.highlightLabel}</Label>
                     <Button type="button" variant="outline" size="sm" onClick={addHighlight}>
                       <Plus className="w-4 h-4 mr-2" />
                       Add Highlight
@@ -1104,7 +1248,7 @@ export default function AdminAddProduct({
                               icon: resolveHighlightIcon(e.target.value),
                             })
                           }
-                          placeholder="Feature Text"
+                          placeholder="Enter a product detail"
                         />
                         <Button
                           type="button"
@@ -1143,7 +1287,7 @@ export default function AdminAddProduct({
                             title: e.target.value,
                           }))
                         }
-                        placeholder="Offer title"
+                        placeholder="Exchange offer title"
                       />
                       <Input
                         value={exchangeOffer.details}
@@ -1153,7 +1297,7 @@ export default function AdminAddProduct({
                             details: e.target.value,
                           }))
                         }
-                        placeholder="Offer details"
+                        placeholder="Exchange offer details"
                       />
                     </div>
                   ) : null}
@@ -1226,7 +1370,8 @@ export default function AdminAddProduct({
                       onInput={() =>
                         setDescriptionHtml(descriptionRef.current?.innerHTML || "")
                       }
-                      className="min-h-52 p-4 text-sm leading-6 outline-none"
+                      data-placeholder={activeCategoryConfig.descriptionPlaceholder}
+                      className="min-h-52 p-4 text-sm leading-6 outline-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]"
                     />
                   </div>
                 </div>
@@ -1256,29 +1401,35 @@ export default function AdminAddProduct({
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  {editingProduct ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setHasVariants(true)}
-                    >
-                      Add Variant
-                    </Button>
-                  ) : (
-                    <Label className="flex items-center gap-3">
-                      <Checkbox
-                        checked={hasVariants}
-                        onCheckedChange={(checked) => setHasVariants(Boolean(checked))}
-                      />
-                      This product has variants
-                    </Label>
-                  )}
-                </div>
+                {showStorageVariants ? (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {editingProduct ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setHasVariants(true)}
+                      >
+                        Add Variant
+                      </Button>
+                    ) : (
+                      <Label className="flex items-center gap-3">
+                        <Checkbox
+                          checked={hasVariants}
+                          onCheckedChange={(checked) => setHasVariants(Boolean(checked))}
+                        />
+                        This product has variants
+                      </Label>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border bg-secondary/30 p-3 text-sm text-muted-foreground">
+                    This category uses a simple product form. No storage variants are needed.
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {hasVariants ? (
+            {useVariantForm ? (
               <Card>
                 <CardHeader>
                   <CardTitle>Storage Variants</CardTitle>
@@ -1560,7 +1711,7 @@ export default function AdminAddProduct({
             ) : (
               <Card>
                 <CardHeader>
-                  <CardTitle>Simple Product</CardTitle>
+                  <CardTitle>{activeCategoryConfig.simpleLabel}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -1570,6 +1721,7 @@ export default function AdminAddProduct({
                         type="number"
                         value={simpleOriginalPrice}
                         onChange={(e) => setSimpleOriginalPrice(e.target.value)}
+                        placeholder={activeCategoryConfig.originalPricePlaceholder}
                       />
                     </div>
                     <div>
@@ -1578,6 +1730,7 @@ export default function AdminAddProduct({
                         type="number"
                         value={simpleSellingPrice}
                         onChange={(e) => setSimpleSellingPrice(e.target.value)}
+                        placeholder={activeCategoryConfig.pricePlaceholder}
                       />
                     </div>
                   </div>
@@ -1620,7 +1773,7 @@ export default function AdminAddProduct({
 
                     <Label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-border text-sm">
                       <ImageIcon className="w-5 h-5 mb-2" />
-                      Add Images
+                      {activeCategoryConfig.simpleImageLabel}
                       <input
                         type="file"
                         accept="image/*"
@@ -1629,6 +1782,10 @@ export default function AdminAddProduct({
                         onChange={(e) => addSimpleImages(e.target.files)}
                       />
                     </Label>
+                  </div>
+
+                  <div className="rounded-md border border-dashed border-border bg-secondary/10 p-3 text-sm text-muted-foreground">
+                    Color variants are managed from the variant flow for this product type.
                   </div>
                 </CardContent>
               </Card>

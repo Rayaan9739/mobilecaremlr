@@ -51,6 +51,7 @@ const slides: Array<{
 export function MobilesHero() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [savedSlides, setSavedSlides] = useState(slides);
   const navigate = useNavigate();
   const { clearFilters } = useProducts();
@@ -93,11 +94,17 @@ export function MobilesHero() {
   }, [activeSlides.length, isHovered]);
 
   const nextSlide = () => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
     setCurrentSlide((prev) => (prev + 1) % activeSlides.length);
+    window.setTimeout(() => setIsTransitioning(false), 600);
   };
 
   const prevSlide = () => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
     setCurrentSlide((prev) => (prev - 1 + activeSlides.length) % activeSlides.length);
+    window.setTimeout(() => setIsTransitioning(false), 600);
   };
 
   const scrollToSection = (sectionId: string) => {
@@ -134,7 +141,7 @@ export function MobilesHero() {
 
   return (
     <section
-      className="relative h-[60vh] md:h-[70vh] overflow-hidden mt-28 md:mt-32"
+      className="group relative h-[60vh] md:h-[70vh] overflow-hidden mt-28 md:mt-32"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -215,14 +222,16 @@ export function MobilesHero() {
       {/* Navigation Arrows */}
       <button
         onClick={prevSlide}
-        className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all opacity-0 group-hover:opacity-100"
+        disabled={isTransitioning}
+        className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 disabled:opacity-60"
       >
         <ChevronLeft className="w-6 h-6" />
       </button>
 
       <button
         onClick={nextSlide}
-        className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all opacity-0 group-hover:opacity-100"
+        disabled={isTransitioning}
+        className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 disabled:opacity-60"
       >
         <ChevronRight className="w-6 h-6" />
       </button>

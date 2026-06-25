@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import api from "@/lib/api";
+import { resolveProductImage, getProductFallbackImage } from "@/utils/productImage";
 
 interface Product {
   id: string;
@@ -152,13 +153,12 @@ export function FeaturedMobiles() {
                     </div>
                   ) : null}
                   <img
-                    src={phone.image}
+                    src={resolveProductImage(phone)}
                     alt={phone.name}
                     className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110"
-                    loading="lazy"
+                    loading="eager"
                     onError={(e) => {
-                      e.currentTarget.src =
-                        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
+                      e.currentTarget.src = getProductFallbackImage();
                     }}
                   />
                 </div>

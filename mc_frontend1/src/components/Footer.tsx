@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRepairBooking } from "@/contexts/RepairBookingContext";
 import { REPAIR_ISSUES } from "@/constants/repairIssues";
+import { COMPANY_LOGO_SRC } from "@/utils/companyLogo";
 
 const quickLinks = [
   { name: "Home", href: "/" },
@@ -36,7 +37,7 @@ export function Footer() {
             viewport={{ once: true }}
           >
             <a href="#" className="flex items-center gap-2 mb-6">
-              <img src="/logo.png" alt="MobileCare Logo" className="w-10 h-10 rounded-xl object-cover" />
+              <img src={COMPANY_LOGO_SRC} alt="MobileCare Logo" className="w-10 h-10 rounded-xl object-cover" />
               <span className="text-xl font-bold">
                 Mobile<span className="text-primary"> Care</span>
               </span>

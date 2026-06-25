@@ -4,6 +4,7 @@ import { Star, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
+import { resolveProductImage, getProductFallbackImage } from "@/utils/productImage";
 
 interface Product {
   id: string;
@@ -53,7 +54,7 @@ export function WeeklyTrendingProducts() {
   }, []);
 
   const getProductImage = (product: Product) =>
-    product.image || product.images?.[0] || fallbackProductImage;
+    resolveProductImage(product);
   const getProductType = (product: Product) =>
     String(product.category || "").toLowerCase() === "mobile"
       ? "new"
@@ -132,9 +133,9 @@ export function WeeklyTrendingProducts() {
                       alt={product.name}
                       className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
                       onError={(e) => {
-                        e.currentTarget.src = fallbackProductImage;
+                        e.currentTarget.src = getProductFallbackImage();
                       }}
-                      loading="lazy"
+                      loading="eager"
                     />
                   </div>
                   <div className="flex-1 flex flex-col justify-between mt-2 sm:mt-3">

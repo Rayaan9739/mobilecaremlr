@@ -29,6 +29,7 @@ import { ProductListHeader } from "@/components/ProductListHeader";
 import { FilterPanel } from "@/components/filtering/FilterPanel";
 import { extractFilterOptions, filterProducts } from "@/utils/filterUtils";
 import { groupProductsByName } from "@/utils/productVariants";
+import { resolveProductImage, getProductFallbackImage } from "@/utils/productImage";
 
 interface ProductsApiResponse {
   products: Product[];
@@ -477,12 +478,13 @@ export default function Products() {
                         ) : null}
 
                         <img
-                          src={
-                            product.image ||
-                            "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=500&fit=crop"
-                          }
+                          src={resolveProductImage(product)}
                           alt={product.name}
                           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => {
+                            e.currentTarget.src = getProductFallbackImage();
+                          }}
+                          loading="eager"
                         />
                       </div>
 

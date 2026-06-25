@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import api from "@/lib/api";
+import { COMPANY_LOGO_SRC } from "@/utils/companyLogo";
 import {
   Dialog,
   DialogContent,
@@ -377,7 +378,7 @@ const Auth = () => {
             {/* Logo */}
             <div className="absolute top-6 left-1/2 transform -translate-x-1/2 text-center">
               <img
-                src="/logo.png"
+                src={COMPANY_LOGO_SRC}
                 alt="Mobile Care Logo"
                 className="w-14 sm:w-16 mx-auto mb-2 object-contain"
               />

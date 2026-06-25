@@ -14,6 +14,8 @@ export interface Category {
   id: string;
   name: string;
   displayName: string;
+  icon?: string;
+  image?: string;
 }
 
 // New hierarchical variant structure: Storage → Color
@@ -183,7 +185,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const fetchCategories = async () => {
     try {
       const response = await api("/categories") as Category[];
-      setCategories(response);
+      setCategories(
+        (response || []).map((category: Category) => ({
+          ...category,
+          image: category.image || category.icon,
+        })),
+      );
     } catch (err) {
       console.error("Failed to fetch categories:", err);
     }

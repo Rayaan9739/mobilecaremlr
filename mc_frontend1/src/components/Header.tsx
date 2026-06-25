@@ -21,6 +21,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRepairBooking } from "@/contexts/RepairBookingContext";
+import { COMPANY_LOGO_SRC } from "@/utils/companyLogo";
 
 const navItems = [
   { name: "Home", href: "/" },
@@ -193,7 +194,7 @@ export function Header() {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 min-w-0">
               <img
-                src="/logo.png"
+                src={COMPANY_LOGO_SRC}
                 alt="MobileCare Logo"
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-cover shrink-0"
               />

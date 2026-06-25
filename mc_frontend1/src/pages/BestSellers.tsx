@@ -7,6 +7,7 @@ import { Footer } from "@/components/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
+import { resolveProductImage, getProductFallbackImage } from "@/utils/productImage";
 
 interface Product {
   id: string;
@@ -165,9 +166,12 @@ export default function BestSellers() {
                 <div className="bg-card rounded-3xl overflow-hidden shadow-card card-hover p-4 h-full">
                   <div className="aspect-[4/5] mb-4 flex items-center justify-center bg-secondary/50 rounded-2xl overflow-hidden">
                     <img
-                      src={product.image}
+                      src={resolveProductImage(product)}
                       alt={product.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        e.currentTarget.src = getProductFallbackImage();
+                      }}
                     />
                   </div>
 

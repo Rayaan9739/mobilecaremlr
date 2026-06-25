@@ -4,6 +4,7 @@ import { Star, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
+import { resolveProductImage, getProductFallbackImage } from "@/utils/productImage";
 
 interface Product {
   id: string;
@@ -156,14 +157,13 @@ export function PopularProducts() {
                      </div>
                    ) : null}
                    <img
-                     src={product.image || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400"}
+                     src={resolveProductImage(product)}
                      alt={product.name}
                      className="w-full h-full object-contain transition-all duration-200 group-hover:scale-105"
                      onError={(e) => {
-                       e.currentTarget.src =
-                         "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
+                       e.currentTarget.src = getProductFallbackImage();
                      }}
-                     loading="lazy"
+                     loading="eager"
                    />
                  </div>
                  <div className="flex-1 flex flex-col justify-between mt-2 sm:mt-3">
