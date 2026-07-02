@@ -131,6 +131,10 @@ function normalizeText(value?: string) {
     .trim();
 }
 
+function normalizeCategory(value?: string) {
+  return value ? value.toString().trim().toLowerCase().replace(/[\s-_]+/g, "") : "";
+}
+
 type VariantStatus = "available" | "out_of_stock" | "not_available";
 
 function getVariantRecord(
@@ -595,7 +599,7 @@ export default function ProductDetailNew() {
         (item) =>
           item.id !== product.id &&
           normalizeText(item.brand) === normalizeText(product.brand) &&
-          normalizeText(item.category) === normalizeText(product.category),
+          normalizeCategory(item.category) === normalizeCategory(product.category),
       )
       .sort((a, b) => {
         const salesA = Number(a.totalSales || 0);
@@ -693,13 +697,27 @@ export default function ProductDetailNew() {
     if (!product) return [];
     const used = new Set([product.id, ...similarProducts.map((p) => p.id), ...frequentlyBought.map((p) => p.id)]);
     const selectedBrand = normalizeText(product.brand);
+    const targetCategory = normalizeCategory(product.category);
+
+    const seenBases = new Set<string>();
+    // Pre-populate seenBases with the current product's base and other shown products' bases
+    seenBases.add(normalizeText(getBaseName(product)));
+    similarProducts.forEach((p) => seenBases.add(normalizeText(getBaseName(p))));
+    frequentlyBought.forEach((p) => seenBases.add(normalizeText(getBaseName(p))));
+
     return products
       .filter(
         (item) =>
           !used.has(item.id) &&
           normalizeText(item.brand) !== selectedBrand &&
-          normalizeText(item.category) === normalizeText(product.category),
+          normalizeCategory(item.category) === targetCategory
       )
+      .filter((item) => {
+        const base = normalizeText(getBaseName(item));
+        if (seenBases.has(base)) return false;
+        seenBases.add(base);
+        return true;
+      })
       .sort((a, b) => {
         const stockA = Number(a.stock || 0);
         const stockB = Number(b.stock || 0);
@@ -717,10 +735,10 @@ export default function ProductDetailNew() {
 
   if (loading || !product) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
+      <div className="min-h-screen bg-secondary">
         <Header />
         <main className="pt-28 md:pt-36 pb-12">
-          <div className="container mx-auto max-w-[1440px] px-4">
+          <div className="container mx-auto max-w-[1440px] px-2">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
               <SkeletonBlock className="h-[580px]" />
               <div className="space-y-5">
@@ -738,151 +756,199 @@ export default function ProductDetailNew() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.08),_transparent_35%),linear-gradient(180deg,#f8fbff_0%,#ffffff_28%,#f3f7fc_100%)] text-slate-900">
+    <div className="min-h-screen bg-secondary text-slate-900">
       <Header />
-      <main className="pt-28 md:pt-36 pb-24">
-        <div className="container mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
-          <div className="mb-5 flex items-center gap-2 text-sm text-slate-500">
-            <button onClick={() => navigate(-1)} className="rounded-full border border-slate-200 bg-white p-2 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      <main className="pt-36 md:pt-40 lg:pt-44 pb-24">
+        <div className="container mx-auto max-w-[1440px] px-3 sm:px-4">
+          <div className="mb-3 flex items-center gap-2 overflow-hidden rounded-md border border-border bg-white px-3 py-2 text-sm text-muted-foreground shadow-soft">
+            <button onClick={() => navigate(-1)} className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-border bg-white transition hover:border-primary hover:text-primary">
               <ArrowLeft className="h-4 w-4" />
             </button>
-            <span>{product.brand}</span>
+            <span className="shrink-0">{product.brand}</span>
             <ChevronRight className="h-4 w-4" />
-            <span className="text-slate-900">{displayName || product.name}</span>
+            <span className="truncate text-foreground">{displayName || product.name}</span>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[45%_55%]">
-            <section className="space-y-4">
-              <div className="grid gap-4 lg:grid-cols-[96px_1fr]">
-                <div className="hidden lg:flex sticky top-32 h-fit flex-col gap-3">
-                  {galleryImages.slice(0, 5).map((image, index) => (
+          <div id="ProductDetailSection" className="ProductDetailSection grid grid-cols-1 gap-3 lg:grid-cols-[41%_59%] lg:items-start">
+            <section className="ProductDetailMedia space-y-3 lg:self-start">
+              <div className="ProductStickyPurchase space-y-3">
+                <div className="ProductImageShell grid overflow-hidden rounded-md border border-border bg-white shadow-soft lg:grid-cols-[82px_1fr]">
+                  <div className="ProductImageThumbs hidden border-r border-border bg-white lg:flex flex-col">
+                    {galleryImages.slice(0, 5).map((image, index) => (
+                      <button
+                        key={image + index}
+                        onClick={() => setSelectedImageIndex(index)}
+                        className={`h-20 shrink-0 border-b border-border bg-white p-2 transition ${selectedImageIndex === index ? "border-l-4 border-l-primary" : "hover:bg-accent/35"}`}
+                      >
+                        <img src={image} alt={`Preview ${index + 1}`} className="h-full w-full object-contain p-1" loading="lazy" />
+                      </button>
+                    ))}
+                  </div>
+
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setIsImageViewerOpen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setIsImageViewerOpen(true);
+                      }
+                    }}
+                    className="ProductImageCard group relative flex min-h-[420px] items-center justify-center overflow-hidden bg-white text-left sm:min-h-[520px]"
+                    aria-label="Open product image fullscreen"
+                  >
+                    <AnimatePresence mode="wait">
+                      <motion.img
+                        key={galleryImages[selectedImageIndex] || galleryImages[0]}
+                        src={galleryImages[selectedImageIndex] || galleryImages[0]}
+                        alt={product.name}
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.28 }}
+                        className="h-full w-full object-contain p-5 sm:p-8 lg:p-10"
+                      />
+                    </AnimatePresence>
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-primary/5 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
+                    <div className="absolute left-4 top-4 flex items-center gap-2 text-xs">
+                      <Badge className="rounded bg-primary px-2.5 py-1 text-primary-foreground shadow-sm">
+                        Assured
+                      </Badge>
+                      <Badge className="rounded bg-emerald-600 px-2.5 py-1 text-white shadow-sm">
+                        {Number(selectedVariantRecord?.stock) > 0 ? "In Stock" : "Out of Stock"}
+                      </Badge>
+                    </div>
+                    <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 lg:hidden">
+                      {galleryImages.map((_, index) => (
+                        <button
+                          type="button"
+                          key={index}
+                          onClick={() => setSelectedImageIndex(index)}
+                          className={`h-2 rounded-full transition-all ${selectedImageIndex === index ? "w-7 bg-primary" : "w-2 bg-slate-300"}`}
+                          aria-label={`Select image ${index + 1}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:hidden flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {galleryImages.map((image, index) => (
                     <button
+                      type="button"
                       key={image + index}
                       onClick={() => setSelectedImageIndex(index)}
-                      className={`overflow-hidden rounded-[20px] border bg-white p-1 transition-all duration-300 ${selectedImageIndex === index ? "border-2 border-blue-500 shadow-[0_12px_28px_rgba(37,99,235,0.18)] ring-4 ring-blue-100/70" : "border-slate-200 hover:border-blue-300"}`}
+                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-white p-1 transition ${selectedImageIndex === index ? "border-primary shadow-soft" : "border-border"}`}
                     >
-                      <img src={image} alt={`Preview ${index + 1}`} className="h-20 w-full object-contain p-1" loading="lazy" />
+                      <img src={image} alt={`Thumbnail ${index + 1}`} className="h-full w-full max-w-full object-contain p-1" />
                     </button>
                   ))}
                 </div>
 
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setIsImageViewerOpen(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setIsImageViewerOpen(true);
-                    }
-                  }}
-                  className="group relative overflow-hidden rounded-[30px] border border-slate-200 bg-white text-left shadow-[0_24px_80px_rgba(15,23,42,0.10)]"
-                  aria-label="Open product image fullscreen"
-                >
-                  <AnimatePresence mode="wait">
-                    <motion.img
-                      key={galleryImages[selectedImageIndex] || galleryImages[0]}
-                      src={galleryImages[selectedImageIndex] || galleryImages[0]}
-                      alt={product.name}
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.28 }}
-                      className="aspect-[4/5] w-full object-contain p-4 sm:p-6 lg:p-8"
-                    />
-                  </AnimatePresence>
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/10 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
-                  <div className="absolute left-4 top-4 flex items-center gap-2">
-                    <Badge className="rounded-full bg-blue-600 px-3 py-1 text-white shadow-md">
-                      Premium
-                    </Badge>
-                    <Badge className="rounded-full bg-emerald-600 px-3 py-1 text-white shadow-md">
-                      In Stock
-                    </Badge>
-                  </div>
-                  <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 lg:hidden">
-                    {galleryImages.map((_, index) => (
-                      <button
-                        type="button"
-                        key={index}
-                        onClick={() => setSelectedImageIndex(index)}
-                        className={`h-2.5 rounded-full transition-all ${selectedImageIndex === index ? "w-8 bg-blue-600" : "w-2.5 bg-slate-300"}`}
-                        aria-label={`Select image ${index + 1}`}
-                      />
-                    ))}
+                <div className="ProductActionBar fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-white/95 p-3 backdrop-blur lg:static lg:border-0 lg:bg-transparent lg:p-0">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Button
+                      onClick={handleBuyNow}
+                      size="lg"
+                      disabled={Number(selectedVariantRecord?.stock) <= 0}
+                      className="h-12 w-full rounded-md bg-primary text-primary-foreground shadow-none transition hover:bg-[#0096c7] lg:h-14 disabled:cursor-not-allowed disabled:bg-primary/40"
+                    >
+                      <ShoppingCart className="mr-2 h-5 w-5" />
+                      Buy Now
+                    </Button>
+                    <Button
+                      onClick={handleAddToCart}
+                      size="lg"
+                      variant="outline"
+                      disabled={Number(selectedVariantRecord?.stock) <= 0}
+                      className="h-12 w-full rounded-md border-[#ff9f00] bg-[#ff9f00] text-white transition hover:bg-[#f59b00] hover:text-white lg:h-14 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-400 disabled:text-white"
+                    >
+                      <PackageCheck className="mr-2 h-5 w-5" />
+                      Add to Cart
+                    </Button>
                   </div>
                 </div>
               </div>
 
-              <div className="lg:hidden flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-                {galleryImages.map((image, index) => (
-                  <button
-                    type="button"
-                    key={image + index}
-                    onClick={() => setSelectedImageIndex(index)}
-                    className={`shrink-0 overflow-hidden rounded-2xl border bg-white p-1 transition w-16 h-16 ${selectedImageIndex === index ? "border-blue-500 shadow-md" : "border-slate-200"}`}
-                  >
-                    <img src={image} alt={`Thumbnail ${index + 1}`} className="h-full w-full max-w-full object-contain p-1" />
-                  </button>
-                ))}
-              </div>
-
-              <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:static lg:border-0 lg:bg-transparent lg:p-0">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Button
-                    onClick={handleBuyNow}
-                    size="lg"
-                    disabled={Number(selectedVariantRecord?.stock) <= 0}
-                    className="h-12 w-full rounded-xl bg-blue-600 text-white shadow-none transition hover:bg-blue-700 lg:h-14 lg:rounded-xl disabled:cursor-not-allowed disabled:bg-blue-300"
-                  >
-                    <ShoppingCart className="mr-2 h-5 w-5" />
-                    Buy Now
-                  </Button>
-                  <Button
-                    onClick={handleAddToCart}
-                    size="lg"
-                    variant="outline"
-                    disabled={Number(selectedVariantRecord?.stock) <= 0}
-                    className="h-12 w-full rounded-xl border-slate-300 bg-black text-white transition hover:bg-gray-900 hover:text-white lg:h-14 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:text-white"
-                  >
-                    <PackageCheck className="mr-2 h-5 w-5" />
-                    Add to Cart
-                  </Button>
+              <div className="hidden rounded-md border border-border bg-white p-4 shadow-soft lg:block">
+                <div className="grid gap-3">
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent text-primary">
+                      <ShieldCheck className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Genuine product</p>
+                      <p className="text-xs leading-5 text-muted-foreground">Checked by Mobile Care before delivery.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent text-primary">
+                      <RefreshCw className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Exchange support</p>
+                      <p className="text-xs leading-5 text-muted-foreground">Get help with exchange and setup in store.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent text-primary">
+                      <PackageCheck className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Pickup or delivery</p>
+                      <p className="text-xs leading-5 text-muted-foreground">Choose the option that works best at checkout.</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
             </section>
 
-            <section className="space-y-4 rounded-[30px] border border-slate-200 bg-white/95 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur">
-              <div>
-                <p className="text-sm font-medium text-slate-500">{product.brand}</p>
-                <h1 className="mt-1 text-2xl font-bold text-gray-900 sm:text-3xl lg:text-4xl break-words">
+            <section className="ProductDetailInfo overflow-hidden rounded-md border border-border bg-white shadow-soft">
+              <div className="border-b border-border p-4 sm:p-5">
+                <p className="text-sm font-medium text-muted-foreground">{product.brand}</p>
+                <h1 className="mt-1 text-xl font-semibold leading-snug text-foreground sm:text-2xl lg:text-[28px] break-words">
                   {displayName || product.name}
                 </h1>
                 {offerState?.offerNote ? (
-                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                     <span className="font-semibold">Offer note: </span>
                     {offerState.offerNote}
                   </div>
                 ) : null}
-                <div className="mt-3 flex items-center gap-3">
+                <div className="mt-3 flex flex-wrap items-center gap-3">
                   {typeof product.rating === "number" && (
-                    <span className="rounded-lg bg-green-600 px-3 py-1 font-semibold text-white whitespace-nowrap">
+                    <span className="rounded bg-green-600 px-2 py-1 text-sm font-semibold text-white whitespace-nowrap">
                       {product.rating.toFixed(1)} ★
                     </span>
                   )}
                   {typeof (product.reviewsCount ?? product.ratingsCount) === "number" && (
-                    <span className="text-gray-600 break-words">
+                    <span className="text-sm text-muted-foreground break-words">
                       {(product.reviewsCount ?? product.ratingsCount)!.toLocaleString("en-IN")} Ratings & Reviews
                     </span>
                   )}
                 </div>
               </div>
 
+              <div className="border-b border-border p-4 sm:p-5">
+                <div className="flex items-end gap-3 flex-wrap">
+                  <div className="text-3xl font-semibold text-foreground lg:text-4xl break-words">{formatINR(currentPrice)}</div>
+                  {originalPrice > currentPrice && (
+                    <>
+                      <div className="pb-1 text-base line-through text-muted-foreground whitespace-nowrap">{formatINR(originalPrice)}</div>
+                      <div className="pb-1 text-base font-semibold text-green-600 whitespace-nowrap">{discount}% off</div>
+                    </>
+                  )}
+                </div>
+                <p className="mt-2 text-sm font-medium text-green-600">Inclusive of all taxes</p>
+              </div>
+
               {visibleColorVariants.length > 0 ? (
-                <div className="space-y-2.5">
-                  <h2 className="text-base font-semibold text-slate-900">
-                    Selected Color: {activeColor?.name || visibleColorVariants[0]?.name || "Select"}
+                <div className="grid gap-3 border-b border-border p-4 sm:grid-cols-[120px_1fr] sm:p-5">
+                  <h2 className="text-sm font-semibold text-muted-foreground">
+                    Color
+                    <span className="mt-1 block text-foreground">{activeColor?.name || visibleColorVariants[0]?.name || "Select"}</span>
                   </h2>
                   <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
                     {visibleColorVariants.map((color) => {
@@ -916,16 +982,16 @@ export default function ProductDetailNew() {
                               setSelectedVariant(matchedVariant);
                             }
                           }}
-                          className={`w-24 min-w-[90px] shrink-0 rounded-2xl bg-white p-2 text-left transition ${
+                          className={`w-24 min-w-[90px] shrink-0 rounded-md bg-white p-2 text-left transition ${
                             isUnavailable
-                              ? "border border-gray-300 opacity-50 cursor-not-allowed"
+                              ? "border border-border opacity-50 cursor-not-allowed"
                               : selected
-                                ? "border-2 border-black shadow-md ring-4 ring-black/5"
-                                : "border border-gray-300"
+                                ? "border-2 border-primary shadow-soft"
+                                : "border border-border hover:border-primary"
                           }`}
                         >
-                          <img src={previewImage} alt={color.name} className="h-14 w-full rounded-xl object-cover" />
-                          <div className="mt-2 text-sm font-semibold text-slate-900">{color.name}</div>
+                          <img src={previewImage} alt={color.name} className="h-14 w-full rounded object-cover" />
+                          <div className="mt-2 text-sm font-semibold text-foreground">{color.name}</div>
                           <div className={`mt-1 text-xs font-medium ${isUnavailable ? "text-gray-500" : isOutOfStock ? "text-red-500" : "text-emerald-600"}`}>
                             {isUnavailable ? "Not Available" : isOutOfStock ? "Out of Stock" : "In Stock"}
                           </div>
@@ -935,15 +1001,16 @@ export default function ProductDetailNew() {
                   </div>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                <div className="border-b border-border bg-accent/25 px-4 py-3 text-sm text-muted-foreground sm:px-5">
                   No color variants are attached to this product yet.
                 </div>
               )}
 
               {(hasStorageVariants || Boolean(product?.storageOption)) && (
-                <div className="space-y-2.5">
-                  <h2 className="text-base font-semibold text-slate-900">
-                    Variant: {selectedStorageLabel || "Select"}
+                <div className="grid gap-3 border-b border-border p-4 sm:grid-cols-[120px_1fr] sm:p-5">
+                  <h2 className="text-sm font-semibold text-muted-foreground">
+                    Storage
+                    <span className="mt-1 block text-foreground">{selectedStorageLabel || "Select"}</span>
                   </h2>
                   <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
                     {storageChoices.map((storage) => {
@@ -983,16 +1050,16 @@ export default function ProductDetailNew() {
                               setSelectedVariant(firstMatch);
                             }
                           }}
-                          className={`min-w-[110px] flex-shrink-0 rounded-2xl bg-white p-4 text-left transition ${
+                          className={`min-w-[112px] flex-shrink-0 rounded-md bg-white p-3 text-left transition ${
                             isUnavailable
-                              ? "border border-gray-300 opacity-50 cursor-not-allowed"
+                              ? "border border-border opacity-50 cursor-not-allowed"
                               : selected
-                                ? "border-2 border-black shadow-md ring-4 ring-black/5"
-                                : "border border-gray-300"
+                                ? "border-2 border-primary shadow-soft"
+                                : "border border-border hover:border-primary"
                           }`}
                         >
-                          <div className="font-semibold text-slate-900">{formatStorageLabel(storage.storage)}</div>
-                          <div className={`mt-1 text-sm font-semibold ${isOutOfStock ? "text-red-500" : "text-slate-700"}`}>
+                          <div className="font-semibold text-foreground">{formatStorageLabel(storage.storage)}</div>
+                          <div className={`mt-1 text-sm font-semibold ${isOutOfStock ? "text-red-500" : "text-muted-foreground"}`}>
                             {isUnavailable ? "Not Available" : isOutOfStock ? "Out of Stock" : formatINR(storagePrice)}
                           </div>
                         </button>
@@ -1003,23 +1070,14 @@ export default function ProductDetailNew() {
               )}
 
               {!hasStorageVariants && hasAnyColorVariants && (
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                <div className="border-b border-border bg-accent/35 px-4 py-3 text-sm text-primary sm:px-5">
                   This product has color variants, but no storage variants were configured.
                 </div>
               )}
 
-              <div className="flex items-center gap-3 mt-4 flex-wrap">
-                <div className="text-3xl font-bold lg:text-4xl break-words">{formatINR(currentPrice)}</div>
-                {originalPrice > currentPrice && (
-                  <>
-                    <div className="line-through text-gray-500 whitespace-nowrap">{formatINR(originalPrice)}</div>
-                    <div className="text-green-600 font-semibold whitespace-nowrap">{discount}% OFF</div>
-                  </>
-                )}
-              </div>
-
               {product.description && (
-                <div className="max-w-3xl text-gray-600 leading-relaxed mt-4 whitespace-pre-line">
+                <div className="border-b border-border p-4 text-sm leading-relaxed text-muted-foreground whitespace-pre-line sm:p-5">
+                  <h2 className="mb-2 text-base font-semibold text-foreground">Description</h2>
                   <div ref={descriptionRef} className={showFullDescription ? "" : "line-clamp-3"}>
                     {product.description}
                   </div>
@@ -1027,7 +1085,7 @@ export default function ProductDetailNew() {
                     <button
                       type="button"
                       onClick={() => setShowFullDescription((prev) => !prev)}
-                      className="mt-2 text-sm font-medium text-blue-600"
+                      className="mt-2 text-sm font-medium text-primary"
                     >
                       {showFullDescription ? "Show Less" : "Show More"}
                     </button>
@@ -1035,35 +1093,37 @@ export default function ProductDetailNew() {
                 </div>
               )}
 
-              <div className="space-y-4 mt-4">
-                <h2 className="text-lg font-semibold text-slate-900">Highlights</h2>
+              <div className="grid gap-3 p-4 sm:grid-cols-[120px_1fr] sm:p-5">
+                <h2 className="text-sm font-semibold text-muted-foreground">Highlights</h2>
+                <div className="space-y-3">
                 {selectedHighlights.length > 0 ? (
                   <>
                     {selectedHighlights.slice(0, showAllHighlights ? selectedHighlights.length : 5).map((item, index) => (
-                    <div key={`${item.text}-${index}`} className="flex items-start gap-4 break-words">
-                      <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-slate-700">
+                    <div key={`${item.text}-${index}`} className="flex items-start gap-3 break-words">
+                      <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent text-foreground">
                         {highlightIconComponents[item.icon || resolveHighlightIcon(item.text)]}
                       </span>
-                      <span className="pt-2">{item.text}</span>
+                      <span className="pt-1.5 text-sm text-foreground">{item.text}</span>
                     </div>
                     ))}
                     {!showAllHighlights && selectedHighlights.length > 5 ? (
                       <button
                         type="button"
                         onClick={() => setShowAllHighlights(true)}
-                        className="text-sm font-medium text-blue-600"
+                        className="text-sm font-medium text-primary"
                       >
                         + View All Highlights
                       </button>
                     ) : null}
                   </>
                 ) : (
-                  <div className="text-sm text-slate-500">No highlights available.</div>
+                  <div className="text-sm text-muted-foreground">No highlights available.</div>
                 )}
+                </div>
               </div>
 
               {exchangeOffer && (
-                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                <div className="m-4 rounded-md border border-amber-100 bg-amber-50 p-4 sm:m-5">
                   <div className="text-sm font-semibold text-amber-900">{exchangeOffer.title}</div>
                   <div className="mt-1 text-sm text-amber-800">{exchangeOffer.details}</div>
                 </div>

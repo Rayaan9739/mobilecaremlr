@@ -81,7 +81,18 @@ const allowedOrigins = [
 const isAllowedLocalOrigin = (origin) => {
   try {
     const { hostname } = new URL(origin);
-    return hostname === "localhost" || hostname === "127.0.0.1";
+    if (hostname === "localhost") return true;
+
+    const parts = hostname.split(".");
+    if (parts.length === 4) {
+      const p1 = parseInt(parts[0], 10);
+      const p2 = parseInt(parts[1], 10);
+      if (p1 === 127) return true;
+      if (p1 === 10) return true;
+      if (p1 === 192 && p2 === 168) return true;
+      if (p1 === 172 && (p2 >= 16 && p2 <= 31)) return true;
+    }
+    return false;
   } catch {
     return false;
   }
@@ -212,8 +223,8 @@ if (require.main === module) {
 
   init()
     .then(() => {
-      const server = app.listen(PORT, () => {
-        console.log(`🚀 API server listening on port ${PORT}`);
+      const server = app.listen(PORT, "0.0.0.0", () => {
+        console.log(`🚀 API server listening on all interfaces at port ${PORT}`);
       });
 
       server.on("error", (err) => {

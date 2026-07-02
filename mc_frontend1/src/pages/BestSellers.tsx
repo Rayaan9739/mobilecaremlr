@@ -150,88 +150,70 @@ export default function BestSellers() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {products.map((product, index) => (
               <motion.div
                 key={product.id}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
                 className="group relative"
               >
-                <div className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-sm font-bold px-2 py-1 rounded-full">
+                <div className="absolute top-2 left-2 z-20 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
                   #{index + 1}
                 </div>
 
-                <div className="bg-card rounded-3xl overflow-hidden shadow-card card-hover p-4 h-full">
-                  <div className="aspect-[4/5] mb-4 flex items-center justify-center bg-secondary/50 rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/product/new/${product.id}`)}
+                  className="w-full bg-white rounded-2xl border border-border hover:border-primary hover:shadow-elevated transition-all duration-300 overflow-hidden group text-left"
+                >
+                  {/* Image */}
+                  <div className="relative aspect-square bg-secondary/20 overflow-hidden">
+                    {product.discount && product.originalPrice && product.originalPrice > product.price && (
+                      <div className="absolute top-2 right-2 z-10 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        -{Math.round(product.discount)}%
+                      </div>
+                    )}
+                    {product.rating && (
+                      <div className="absolute bottom-2 left-2 z-10 bg-white/90 backdrop-blur text-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-soft">
+                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                        {product.rating}
+                      </div>
+                    )}
                     <img
                       src={resolveProductImage(product)}
                       alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="w-full h-full object-contain p-3 transition-transform duration-500 group-hover:scale-110"
                       onError={(e) => {
                         e.currentTarget.src = getProductFallbackImage();
                       }}
                     />
                   </div>
-
-                  <div className="flex flex-col h-full">
-                    {product.rating && (
-                      <div className="flex items-center gap-1 mb-2">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < Math.floor(product.rating || 0)
-                                ? "text-yellow-400 fill-yellow-400"
-                                : "text-muted"
-                            }`}
-                          />
-                        ))}
-                        <span className="text-sm text-muted-foreground ml-1">
-                          ({product.rating})
-                        </span>
-                      </div>
-                    )}
-
-                    <h3 className="text-lg font-bold text-foreground mb-2 line-clamp-2">
+                  {/* Info */}
+                  <div className="p-3">
+                    <h3 className="text-sm font-semibold text-foreground mb-1 line-clamp-2 leading-tight">
                       {product.name}
                     </h3>
-
                     {(product.salesCount || product.bookingsCount) && (
-                      <p className="text-sm text-muted-foreground mb-2">
+                      <p className="text-xs text-muted-foreground mb-2">
                         {product.salesCount && `${product.salesCount} sold`}
                         {product.salesCount && product.bookingsCount && " • "}
-                        {product.bookingsCount &&
-                          `${product.bookingsCount} booked`}
+                        {product.bookingsCount && `${product.bookingsCount} booked`}
                       </p>
                     )}
-
-                    <div className="flex items-center gap-2 mb-4 mt-auto">
-                      <span className="text-xl font-bold text-primary">
-                        ₹{product.price.toLocaleString()}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-base font-black text-primary">
+                        ₹{product.price.toLocaleString("en-IN")}
                       </span>
-                      {product.discount &&
-                        product.originalPrice &&
-                        product.originalPrice > product.price && (
-                          <span className="text-sm text-muted-foreground line-through">
-                            ₹
-                            {Math.round(product.originalPrice).toLocaleString(
-                              "en-IN",
-                            )}
-                          </span>
-                        )}
+                      {product.discount && product.originalPrice && product.originalPrice > product.price && (
+                        <span className="text-xs text-muted-foreground line-through">
+                          ₹{Math.round(product.originalPrice).toLocaleString("en-IN")}
+                        </span>
+                      )}
                     </div>
-
-                    <Button
-                      onClick={() => handleAddToCart(product)}
-                      className="w-full btn-gradient text-primary-foreground rounded-xl"
-                    >
-                      <ShoppingCart className="w-4 h-4 mr-2" />
-                      Add to Cart
-                    </Button>
                   </div>
-                </div>
+                </button>
               </motion.div>
             ))}
           </div>

@@ -137,6 +137,8 @@ export default function ProductDetail() {
   };
   const normalizeValue = (value?: string | null) =>
     String(value || "").toLowerCase().trim();
+  const normalizeCategory = (value?: string | null) =>
+    value ? value.toString().trim().toLowerCase().replace(/[\s-_]+/g, "") : "";
   const getProductColor = (item?: Partial<Product> | null) =>
     normalizeValue(
       item?.colorName ||
@@ -485,8 +487,8 @@ export default function ProductDetail() {
       .filter(
         (group) =>
           group.groupId !== currentGroup.groupId &&
-          String(group.category).toLowerCase() ===
-            String(currentGroup.category).toLowerCase() &&
+          normalizeCategory(group.category) ===
+            normalizeCategory(currentGroup.category) &&
           String(group.brand).toLowerCase() !==
             String(currentGroup.brand).toLowerCase(),
       )
@@ -693,10 +695,10 @@ export default function ProductDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-secondary">
         <Header />
-        <main className="pt-32 md:pt-40 pb-16 bg-[#f5f7fa]">
-          <div className="container mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
+        <main className="pt-32 md:pt-40 pb-16 bg-secondary">
+          <div className="container mx-auto max-w-[1440px] px-2">
             <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-8">
               <div className="grid grid-cols-1 md:grid-cols-[88px_1fr] gap-4">
                 <div className="hidden md:flex flex-col gap-3">
@@ -722,10 +724,10 @@ export default function ProductDetail() {
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-secondary">
         <Header />
-        <main className="pt-32 md:pt-40 pb-16 bg-white">
-          <div className="container mx-auto max-w-[1440px] px-6 lg:px-8 text-center">
+        <main className="pt-32 md:pt-40 pb-16 bg-secondary">
+          <div className="container mx-auto max-w-[1440px] px-2 text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">
               Product Not Found
             </h1>
@@ -764,11 +766,11 @@ export default function ProductDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-secondary">
       <Header />
 
-      <main className="pt-32 md:pt-40 pb-16 bg-[#f5f7fa]">
-        <div className="container mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
+      <main className="pt-32 md:pt-40 pb-16 bg-secondary">
+        <div className="container mx-auto max-w-[1440px] px-2">
           {/* Breadcrumb */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -797,11 +799,11 @@ export default function ProductDetail() {
             <span className="text-foreground">{displayName}</span>
           </motion.div>
 
-          <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-8">
+          <div id="ProductDetailSection" className="ProductDetailSection grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-8 lg:items-start">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-4 lg:sticky lg:top-[100px] lg:self-start lg:h-fit"
             >
               <div className="grid grid-cols-1 md:grid-cols-[88px_1fr] gap-4">
                 <div className="hidden md:flex flex-col gap-3">
@@ -1183,6 +1185,7 @@ export default function ProductDetail() {
                   Book To Order
                 </Button>
               </div>
+
             </motion.div>
           </div>
 

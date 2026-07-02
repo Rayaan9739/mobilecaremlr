@@ -81,7 +81,7 @@ router.post("/", adminAuth, async (req, res) => {
       });
     }
 
-    const { name, displayName } = req.body;
+    const { name, displayName, icon, image } = req.body;
 
     const trimmedDisplayName =
       displayName !== undefined ? displayName.toString().trim() : "";
@@ -104,6 +104,8 @@ router.post("/", adminAuth, async (req, res) => {
       data: {
         name: normalizedName,
         displayName: finalDisplayName,
+        icon: icon || null,
+        image: image || icon || null,
       },
     });
 
@@ -119,7 +121,7 @@ router.post("/", adminAuth, async (req, res) => {
 
 router.put("/:id", adminAuth, async (req, res) => {
   try {
-    const { name, displayName } = req.body;
+    const { name, displayName, icon, image } = req.body;
     const rawDisplayName = String(displayName || name || "").trim();
     if (!rawDisplayName) {
       return res.status(400).json({ error: "Category name is required" });
@@ -131,6 +133,8 @@ router.put("/:id", adminAuth, async (req, res) => {
       data: {
         name: normalizedName,
         displayName: String(displayName || buildDisplayName(rawDisplayName)),
+        icon: icon !== undefined ? icon : undefined,
+        image: image !== undefined ? image : (icon !== undefined ? icon : undefined),
       },
     });
 

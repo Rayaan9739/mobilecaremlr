@@ -367,62 +367,62 @@ function BrandPage() {
           />
 
           {/* Products Grid */}
-          <div className="grid grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {flatProducts.map((product, index) => (
               <motion.div
                 key={product.id}
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                onClick={() =>
-                  navigate(
-                    `/product/${String(product.category).toLowerCase() === "mobile" ? "new" : "accessory"}/${product.id}`,
-                  )
-                }
-                className="cursor-pointer group h-full"
+                className="h-full"
               >
-                <Card className="border-border hover:border-primary/50 transition-all duration-300 hover:shadow-elevated h-[220px] sm:h-[240px] flex flex-col w-full overflow-hidden">
-                  <CardContent className="p-0 flex flex-col h-full">
-                    <div className="relative overflow-hidden bg-secondary rounded-t-sm sm:rounded-t-xl h-[120px] sm:h-[130px]">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      `/product/${String(product.category).toLowerCase() === "mobile" ? "new" : "accessory"}/${product.id}`,
+                    )
+                  }
+                  className="w-full h-full flex flex-col bg-white rounded-2xl border border-gray-200 hover:border-primary hover:shadow-lg transition-all duration-300 overflow-hidden group text-left"
+                >
+                  {/* Image Area */}
+                  <div className="relative w-full bg-white overflow-hidden shrink-0" style={{ paddingBottom: "75%" }}>
+                    <div className="absolute inset-0 flex items-center justify-center p-5">
+                      {product.discount && product.originalPrice && product.originalPrice > getProductMinPrice(product) && (
+                        <div className="absolute top-2 right-2 z-10 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          -{Math.round(product.discount)}%
+                        </div>
+                      )}
                       {product.rating && (
-                        <div className="absolute top-0.5 left-0.5 sm:top-3 sm:left-3 z-30 bg-black/60 backdrop-blur-sm text-white text-[6px] sm:text-xs font-bold px-1 py-0.5 rounded flex items-center gap-0.5">
-                          <Star className="w-1.5 h-1.5 sm:w-3 sm:h-3 fill-yellow-400 text-yellow-400" />
+                        <div className="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur text-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
                           {product.rating}
                         </div>
                       )}
-
                       <img
                         src={product.image || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=500&fit=crop"}
                         alt={product.name}
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                        className="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-105"
                       />
                     </div>
-
-                    <div className="p-2 sm:p-3 flex-1 flex flex-col justify-between">
-                      <div>
-                        <h3 className="font-bold text-foreground text-[8px] sm:text-sm line-clamp-2 mb-1 min-h-[20px] sm:min-h-0">
-                          {product.name}
-                        </h3>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
-                        {product.discount &&
-                          product.originalPrice &&
-                          product.originalPrice > getProductMinPrice(product) && (
-                            <span className="text-muted-foreground text-[6px] sm:text-xs line-through">
-                              ₹
-                              {Math.round(product.originalPrice).toLocaleString(
-                                "en-IN",
-                              )}
-                            </span>
-                          )}
-                        <span className="text-foreground font-black text-[9px] sm:text-sm">
-                          ₹{getProductMinPrice(product).toLocaleString()}
+                  </div>
+                  {/* Info */}
+                  <div className="p-4 flex flex-col flex-1 border-t border-gray-100">
+                    <h3 className="text-xs font-bold text-gray-800 mb-2 line-clamp-2 leading-snug uppercase tracking-wide flex-1">
+                      {product.name}
+                    </h3>
+                    <div className="flex items-center gap-2 flex-wrap mt-2">
+                      <span className="text-base font-black text-primary">
+                        ₹{getProductMinPrice(product).toLocaleString("en-IN")}
+                      </span>
+                      {product.discount && product.originalPrice && product.originalPrice > getProductMinPrice(product) && (
+                        <span className="text-xs text-muted-foreground line-through">
+                          ₹{Math.round(product.originalPrice).toLocaleString("en-IN")}
                         </span>
-                      </div>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </button>
               </motion.div>
             ))}
           </div>

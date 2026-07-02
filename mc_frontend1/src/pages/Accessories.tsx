@@ -274,7 +274,7 @@ export default function Accessories() {
 
           {/* Products Grid */}
           {loading ? (
-            <div className="grid grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2 mb-12">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-12">
               {[...Array(8)].map((_, index) => (
                 <div
                   key={index}
@@ -311,58 +311,55 @@ export default function Accessories() {
               </Button>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2 mb-12">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-12">
               {filteredProducts.map((product, index) => (
                 <motion.div
                   key={product.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  onClick={() => navigate(`/product/accessory/${product.id}`)}
-                  className="cursor-pointer group h-full"
                 >
-                  <Card className="border-border hover:border-primary/50 transition-all duration-300 hover:shadow-elevated h-[220px] sm:h-[240px] flex flex-col w-full overflow-hidden">
-                    <CardContent className="p-0 flex flex-col h-full">
-                      <div className="relative overflow-hidden bg-secondary rounded-t-sm sm:rounded-t-xl h-[120px] sm:h-[130px]">
-                        {product.rating && (
-                          <div className="absolute top-0.5 left-0.5 sm:top-3 sm:left-3 z-30 bg-black/60 backdrop-blur-sm text-white text-[6px] sm:text-xs font-bold px-1 py-0.5 rounded flex items-center gap-0.5">
-                            <Star className="w-1.5 h-1.5 sm:w-3 sm:h-3 fill-yellow-400 text-yellow-400" />
-                            {product.rating}
-                          </div>
-                        )}
-
-                        <img
-                          src={product.image || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=500&fit=crop"}
-                          alt={product.name}
-                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
-                        />
-                      </div>
-
-                      <div className="p-2 sm:p-3 flex-1 flex flex-col justify-between">
-                        <div>
-                          <h3 className="font-bold text-foreground text-[7px] sm:text-[8px] md:text-sm line-clamp-2 mb-1 min-h-[20px] sm:min-h-0">
-                            {product.name}
-                          </h3>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/product/accessory/${product.id}`)}
+                    className="w-full bg-white rounded-2xl border border-border hover:border-primary hover:shadow-elevated transition-all duration-300 overflow-hidden group text-left"
+                  >
+                    {/* Image */}
+                    <div className="relative aspect-square bg-secondary/20 overflow-hidden">
+                      {product.discount && product.originalPrice && product.originalPrice > product.price && (
+                        <div className="absolute top-2 right-2 z-10 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          -{Math.round(product.discount)}%
                         </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-2">
-                          {product.discount &&
-                            product.originalPrice &&
-                            product.originalPrice > product.price && (
-                              <span className="text-muted-foreground text-[6px] sm:text-xs line-through">
-                                ₹
-                                {Math.round(
-                                  product.originalPrice,
-                                ).toLocaleString("en-IN")}
-                              </span>
-                            )}
-                          <span className="text-foreground font-black text-[9px] sm:text-sm">
-                            ₹{product.price.toLocaleString()}
+                      )}
+                      {product.rating && (
+                        <div className="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur text-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-soft">
+                          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                          {product.rating}
+                        </div>
+                      )}
+                      <img
+                        src={product.image || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=500&fit=crop"}
+                        alt={product.name}
+                        className="w-full h-full object-contain p-3 transition-transform duration-500 group-hover:scale-110"
+                      />
+                    </div>
+                    {/* Info */}
+                    <div className="p-3">
+                      <h3 className="text-sm font-semibold text-foreground mb-2 line-clamp-2 leading-tight">
+                        {product.name}
+                      </h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-base font-black text-primary">
+                          ₹{product.price.toLocaleString("en-IN")}
+                        </span>
+                        {product.discount && product.originalPrice && product.originalPrice > product.price && (
+                          <span className="text-xs text-muted-foreground line-through">
+                            ₹{Math.round(product.originalPrice).toLocaleString("en-IN")}
                           </span>
-                        </div>
+                        )}
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </button>
                 </motion.div>
               ))}
             </div>
