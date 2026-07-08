@@ -404,8 +404,8 @@ export default function MobilesAccessories() {
                     transition={{ delay: index * 0.05 }}
                     onClick={() => {
                       if (cat.isAccessories) {
-                        console.log('🏷️ Category clicked:', cat.name, '-> /accessories');
-                        navigate('/accessories');
+                        console.log('🏷️ Category clicked:', cat.name, '-> /products?category=accessories');
+                        navigate('/products?category=accessories');
                       } else {
                         const categoryParam = scrollCategoryName(cat.category);
                         console.log('🏷️ Category clicked:', cat.name, '-> category:', categoryParam);
@@ -483,7 +483,7 @@ export default function MobilesAccessories() {
                   See All <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-4">
                 {bestSelling.map((phone, index) => (
                   <ProductCard
                     key={phone.groupId}
@@ -641,7 +641,7 @@ export default function MobilesAccessories() {
                   See All <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-4">
                 {flagship.map((phone, index) => (
                   <ProductCard
                     key={phone.groupId}
@@ -681,7 +681,7 @@ export default function MobilesAccessories() {
                   See All <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-4">
                 {midRange.map((phone, index) => (
                   <ProductCard
                     key={phone.groupId}
@@ -743,19 +743,19 @@ function ProductCard({
       <button
         type="button"
         onClick={onClick}
-        className="w-full h-full flex flex-col bg-white rounded-2xl border border-gray-200 hover:border-primary hover:shadow-lg transition-all duration-300 overflow-hidden group text-left"
+        className="w-full h-full flex flex-col bg-white rounded-lg sm:rounded-2xl border border-gray-200 hover:border-primary hover:shadow-lg transition-all duration-300 overflow-hidden group text-left cursor-pointer"
       >
         {/* Image Area */}
         <div className="relative w-full bg-white overflow-hidden shrink-0" style={{ paddingBottom: "75%" }}>
-          <div className="absolute inset-0 flex items-center justify-center p-5">
+          <div className="absolute inset-0 flex items-center justify-center p-1.5 sm:p-5">
             {phone.discount && phone.originalPrice && phone.originalPrice > phone.minPrice && (
-              <div className="absolute top-2 right-2 z-10 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+              <div className="absolute top-1 right-1 z-10 bg-red-500 text-white text-[8px] sm:text-[10px] font-bold px-1 sm:px-2 py-0.5 rounded-sm sm:rounded-full">
                 -{Math.round(phone.discount)}%
               </div>
             )}
             {phone.rating && (
-              <div className="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur text-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-                <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+              <div className="absolute bottom-1 left-1 z-10 bg-white/95 backdrop-blur text-foreground text-[8px] sm:text-[10px] font-bold px-1 sm:px-2 py-0.5 rounded-sm sm:rounded-full flex items-center gap-0.5 shadow-sm border border-neutral-100">
+                <Star className="w-2 h-2 sm:w-2.5 sm:h-2.5 fill-amber-400 text-amber-400" />
                 {phone.rating}
               </div>
             )}
@@ -775,19 +775,21 @@ function ProductCard({
           </div>
         </div>
         {/* Info */}
-        <div className="p-4 flex flex-col flex-1 border-t border-gray-100">
-          <h3 className="text-xs font-bold text-gray-800 mb-2 line-clamp-2 leading-snug uppercase tracking-wide flex-1">
+        <div className="p-1.5 sm:p-4 flex flex-col flex-1 border-t border-gray-100 justify-between">
+          <h3 className="text-[10px] sm:text-xs md:text-sm font-medium sm:font-bold text-gray-800 mb-1 line-clamp-2 leading-snug uppercase tracking-wide">
             {phone.name}
           </h3>
-          <div className="flex items-center gap-2 flex-wrap mt-2">
-            <span className="text-base font-black text-primary">
-              ₹{phone.minPrice.toLocaleString("en-IN")}
-            </span>
-            {phone.discount && phone.originalPrice && phone.originalPrice > phone.minPrice && (
-              <span className="text-xs text-muted-foreground line-through">
-                ₹{Math.round(phone.originalPrice).toLocaleString("en-IN")}
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 flex-wrap">
+              <span className="text-xs sm:text-base font-bold sm:font-black text-primary">
+                ₹{phone.minPrice.toLocaleString("en-IN")}
               </span>
-            )}
+              {phone.discount && phone.originalPrice && phone.originalPrice > phone.minPrice && (
+                <span className="text-[9px] sm:text-xs text-muted-foreground line-through font-normal">
+                  ₹{Math.round(phone.originalPrice).toLocaleString("en-IN")}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </button>

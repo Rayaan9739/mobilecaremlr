@@ -80,6 +80,17 @@ export function Header() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const urlSearchQuery = params.get("search") || "";
+
+    if (location.pathname === "/products") {
+      setSearchQuery(urlSearchQuery);
+    } else if (!urlSearchQuery) {
+      setSearchQuery("");
+    }
+  }, [location.pathname, location.search]);
+
   // Debounced live search filtering
   useEffect(() => {
     const trimmed = searchQuery.trim();
@@ -119,7 +130,6 @@ export function Header() {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery("");
       setShowDropdown(false);
     }
   };
@@ -139,22 +149,93 @@ export function Header() {
     { icon: LogOut, label: "Log Out", subtitle: "Sign out of account", path: "/logout" },
   ];
 
+  const renderSearchDropdown = () => (
+    <AnimatePresence>
+      {showDropdown && (
+        <motion.div
+          initial={{ opacity: 0, y: -8, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -8, scale: 0.98 }}
+          transition={{ duration: 0.15 }}
+          className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl md:rounded-2xl border border-gray-200 shadow-2xl z-50 overflow-hidden"
+        >
+          {searchResults.length === 0 ? (
+            <div className="px-4 py-5 text-center text-muted-foreground text-xs md:text-sm">
+              No products found for &ldquo;<span className="font-semibold text-foreground">{searchQuery}</span>&rdquo;
+            </div>
+          ) : (
+            <>
+              <div className="px-4 pt-3 pb-1 text-[10px] md:text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Products
+              </div>
+              <div className="divide-y divide-gray-100">
+                {searchResults.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => handleResultClick(product)}
+                    className="w-full flex items-center gap-2.5 md:gap-3 px-3 md:px-4 py-2.5 md:py-3 hover:bg-blue-50 transition-colors text-left group"
+                  >
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-[#f0f7ff] flex items-center justify-center shrink-0 overflow-hidden border border-gray-100">
+                      <img
+                        src={resolveProductImage(product)}
+                        alt={product.name}
+                        className="w-full h-full object-contain p-1"
+                        onError={(e) => { e.currentTarget.src = getProductFallbackImage(); }}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs md:text-sm font-semibold text-gray-800 truncate group-hover:text-primary transition-colors">
+                        {product.name}
+                      </p>
+                      <p className="text-[10px] md:text-xs text-muted-foreground">
+                        {product.category && (
+                          <span className="capitalize">{String(product.category).toLowerCase().replace(/_/g, " ")} &bull; </span>
+                        )}
+                        <span className="font-bold text-primary">
+                          ₹{Number(product.price || 0).toLocaleString("en-IN")}
+                        </span>
+                      </p>
+                    </div>
+                    <Search className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+                  setShowDropdown(false);
+                }}
+                className="w-full px-4 py-3 text-xs md:text-sm font-semibold text-primary hover:bg-primary hover:text-white transition-colors text-center border-t border-gray-100"
+              >
+                View all results for &ldquo;{searchQuery}&rdquo;
+              </button>
+            </>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
       {/* ── Row 1: Top Info Bar ── */}
       <div className="bg-white border-b border-border text-foreground py-1.5 text-xs">
-        <div className="container mx-auto px-4 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-4 flex-wrap">
-            <span className="flex items-center gap-1.5 text-muted-foreground">
+        <div className="container mx-auto px-2 sm:px-4 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-4">
+            <span className="flex min-w-0 items-center gap-1 text-muted-foreground sm:gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span className="text-[10px] font-medium sm:hidden">Kodialbail</span>
               <span className="hidden sm:inline font-medium">Kodialbail, Mangaluru</span>
             </span>
-            <span className="flex items-center gap-1.5 text-muted-foreground">
+            <span className="flex min-w-0 items-center gap-1 text-muted-foreground sm:gap-1.5">
               <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span className="whitespace-nowrap text-[10px] font-medium sm:hidden">9 AM – 8:30 PM</span>
               <span className="hidden sm:inline font-medium">Mon – Sat: 9:00 AM – 8:30 PM</span>
             </span>
           </div>
-          <div className="flex items-center gap-4 text-muted-foreground">
+          <div className="flex shrink-0 items-center gap-4 text-[10px] text-muted-foreground sm:text-xs">
             <Link to="/faq" className="hover:text-primary transition-colors font-medium hidden sm:inline">FAQ</Link>
             <Link to="/contact" className="hover:text-primary transition-colors font-medium hidden sm:inline">Support</Link>
             {!loading && isAuthenticated ? (
@@ -212,19 +293,19 @@ export function Header() {
       </div>
 
       {/* ── Row 2: Logo + Search + Icons ── */}
-      <div className="bg-white border-b border-border py-3">
-        <div className="container mx-auto px-4">
+      <div className="bg-white border-b border-border py-2.5 md:py-3">
+        <div className="container mx-auto px-3 sm:px-4" ref={searchContainerRef}>
           <div className="flex items-center gap-4">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 shrink-0">
-              <img src="/logo.jpg" alt="Mobile Care Logo" className="w-9 h-9 aspect-square object-contain rounded-xl" />
-              <span className="text-xl font-bold text-foreground hidden sm:block">
+            <Link to="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0">
+              <img src="/logo.jpg" alt="Mobile Care Logo" className="w-8 h-8 sm:w-9 sm:h-9 aspect-square object-contain rounded-xl" />
+              <span className="text-sm sm:text-xl font-bold text-foreground leading-none whitespace-nowrap">
                 Mobile <span className="text-red-600">Care</span>
               </span>
             </Link>
 
             {/* Search Bar */}
-            <div ref={searchContainerRef} className="flex-1 max-w-2xl mx-auto hidden md:block relative">
+            <div className="flex-1 max-w-2xl mx-auto hidden md:block relative">
               <form onSubmit={handleSearch}>
                 <div className="flex w-full rounded-full border-2 border-primary overflow-hidden shadow-soft">
                   <div className="flex items-center gap-2 px-4 py-2.5 text-xs text-muted-foreground bg-accent/30 border-r border-border shrink-0">
@@ -236,7 +317,7 @@ export function Header() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => {
-                      if (searchResults.length > 0) setShowDropdown(true);
+                      if (searchQuery.trim().length >= 2) setShowDropdown(true);
                     }}
                     placeholder="Search for mobiles, accessories, brands..."
                     className="flex-1 px-4 py-2.5 text-sm text-foreground bg-white outline-none placeholder:text-muted-foreground/60"
@@ -311,7 +392,6 @@ export function Header() {
                           onClick={() => {
                             navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
                             setShowDropdown(false);
-                            setSearchQuery("");
                           }}
                           className="w-full px-4 py-3 text-sm font-semibold text-primary hover:bg-primary hover:text-white transition-colors text-center border-t border-gray-100"
                         >
@@ -369,32 +449,36 @@ export function Header() {
           </div>
 
           {/* Mobile Search */}
-          <form onSubmit={handleSearch} className="mt-3 md:hidden">
+          <form onSubmit={handleSearch} className="mt-2.5 md:hidden relative">
             <div className="flex w-full rounded-full border-2 border-primary overflow-hidden">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => {
+                  if (searchQuery.trim().length >= 2) setShowDropdown(true);
+                }}
                 placeholder="Search mobiles, accessories..."
-                className="flex-1 px-4 py-2 text-sm text-foreground bg-white outline-none"
+                className="min-w-0 flex-1 px-4 py-2 text-xs text-foreground bg-white outline-none placeholder:text-muted-foreground/70"
               />
               <button type="submit" className="px-4 py-2 btn-gradient text-white">
                 <Search className="w-4 h-4" />
               </button>
             </div>
+            {renderSearchDropdown()}
           </form>
         </div>
       </div>
 
       {/* ── Row 3: Navigation ── */}
-      <nav className="bg-primary hidden lg:block">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-8">
+      <nav className="bg-primary">
+        <div className="container mx-auto px-3 sm:px-4">
+          <div className="flex items-center gap-4 overflow-x-auto scrollbar-hide lg:gap-8">
             {navItems.map((item) => (
               <Link
                 key={item.name}
                 to={item.href}
-                className={`py-3 text-sm font-semibold transition-colors border-b-2 whitespace-nowrap ${
+                className={`shrink-0 py-2.5 text-xs font-semibold transition-colors border-b-2 whitespace-nowrap lg:py-3 lg:text-sm ${
                   location.pathname === item.href
                     ? "text-white border-white"
                     : "text-white/80 border-transparent hover:text-white hover:border-white/50"
@@ -403,7 +487,7 @@ export function Header() {
                 {item.name}
               </Link>
             ))}
-            <div className="ml-auto flex items-center gap-6 text-white/80 text-sm">
+            <div className="ml-auto hidden items-center gap-6 text-white/80 text-sm lg:flex">
               <button
                 onClick={() => openModal()}
                 className="flex items-center gap-1.5 hover:text-white transition-colors font-semibold"

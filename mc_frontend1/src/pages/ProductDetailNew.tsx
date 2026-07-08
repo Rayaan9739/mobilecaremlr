@@ -758,11 +758,16 @@ export default function ProductDetailNew() {
   return (
     <div className="min-h-screen bg-secondary text-slate-900">
       <Header />
-      <main className="pt-36 md:pt-40 lg:pt-44 pb-24">
+      <main className="pt-44 md:pt-40 lg:pt-44 pb-24">
         <div className="container mx-auto max-w-[1440px] px-3 sm:px-4">
           <div className="mb-3 flex items-center gap-2 overflow-hidden rounded-md border border-border bg-white px-3 py-2 text-sm text-muted-foreground shadow-soft">
-            <button onClick={() => navigate(-1)} className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-border bg-white transition hover:border-primary hover:text-primary">
-              <ArrowLeft className="h-4 w-4" />
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-border bg-white text-foreground transition hover:border-primary hover:text-primary"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-5 w-5" />
             </button>
             <span className="shrink-0">{product.brand}</span>
             <ChevronRight className="h-4 w-4" />
@@ -1163,7 +1168,7 @@ export default function ProductDetailNew() {
           )}
           <section className="space-y-4">
             <h2 className="text-lg font-semibold text-slate-900">Frequently Bought Together</h2>
-            <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.08)] sm:rounded-[28px]">
               <div className="divide-y divide-slate-200">
                 {[
                   {
@@ -1185,15 +1190,15 @@ export default function ProductDetailNew() {
                 ].map((item, index) => (
                   <div
                     key={item.id}
-                    className={`grid grid-cols-[72px_1fr_40px] items-center gap-4 px-4 py-4 max-sm:grid-cols-1 max-sm:items-start ${index === 0 ? "bg-slate-50" : "bg-white"}`}
+                    className={`grid grid-cols-[52px_minmax(0,1fr)_28px] items-center gap-2.5 px-3 py-3 sm:grid-cols-[72px_1fr_40px] sm:gap-4 sm:px-4 sm:py-4 ${index === 0 ? "bg-slate-50" : "bg-white"}`}
                   >
-                    <img src={item.image} alt={item.name} className="h-16 w-16 rounded-xl border border-slate-200 object-cover" />
+                    <img src={item.image} alt={item.name} className="h-12 w-12 rounded-lg border border-slate-200 object-contain sm:h-16 sm:w-16 sm:rounded-xl" />
                     <div className="min-w-0">
                       <div className="text-xs text-slate-500">{index === 0 ? product.brand : (item.brand || "")}</div>
                       <div className="truncate text-sm font-medium text-slate-900">{item.name}</div>
                       <div className="mt-1 text-sm font-semibold text-blue-600">{formatINR(item.price)}</div>
                     </div>
-                    <div className="flex justify-end max-sm:justify-start">
+                    <div className="flex justify-end">
                       <input
                         type="checkbox"
                         checked={index === 0 ? true : selectedBundleIds.includes(item.id)}
@@ -1204,14 +1209,14 @@ export default function ProductDetailNew() {
                             e.target.checked ? [...prev, item.id] : prev.filter((id) => id !== item.id),
                           );
                         }}
-                        className="h-5 w-5 accent-blue-600"
+                        className="h-[18px] w-[18px] accent-blue-600 sm:h-5 sm:w-5"
                         aria-label={`Select ${item.name}`}
                       />
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2.5 border-t border-slate-200 bg-slate-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-4">
                 <div className="text-sm text-slate-600">
                   5 products
                   <span className="ml-2 font-semibold text-slate-900">

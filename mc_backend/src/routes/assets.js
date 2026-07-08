@@ -1,8 +1,8 @@
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
-const fs = require("fs");
 const { adminAuth } = require("../middleware/auth");
+const { uploadErrorHandler } = require("../utils/cloudinary");
 const {
   uploadImage,
   getAssets,
@@ -25,7 +25,11 @@ const fileFilter = (req, file, cb) => {
   if (extname && mimetype) {
     return cb(null, true);
   } else {
-    cb(new Error("Only image files are allowed (jpeg, jpg, png, webp, svg)"));
+    const error = new Error(
+      "Only image files are allowed (jpeg, jpg, png, webp, svg)",
+    );
+    error.code = "UNSUPPORTED_IMAGE_TYPE";
+    cb(error);
   }
 };
 
@@ -46,5 +50,7 @@ router.put("/assets/:id", adminAuth, updateAsset);
 
 // DELETE /api/admin/assets/:id - Delete asset
 router.delete("/assets/:id", adminAuth, deleteAsset);
+
+router.use(uploadErrorHandler);
 
 module.exports = router;

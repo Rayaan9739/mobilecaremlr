@@ -62,13 +62,13 @@ export function PopularProducts() {
               <h2 className="text-2xl font-bold text-foreground">Most Popular Products</h2>
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-4">
             {[1, 2, 3, 4, 5].map((id) => (
-              <div key={id} className="bg-white rounded-2xl border border-border animate-pulse overflow-hidden">
+              <div key={id} className="bg-white rounded-lg sm:rounded-2xl border border-border animate-pulse overflow-hidden">
                 <div className="aspect-square bg-secondary/50" />
-                <div className="p-3 space-y-2">
-                  <div className="h-4 bg-secondary/50 rounded" />
-                  <div className="h-5 bg-secondary/50 rounded w-2/3" />
+                <div className="p-1.5 sm:p-3 space-y-2">
+                  <div className="h-3 bg-secondary/50 rounded" />
+                  <div className="h-4 bg-secondary/50 rounded w-2/3" />
                 </div>
               </div>
             ))}
@@ -105,7 +105,7 @@ export function PopularProducts() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-4">
           {visibleProducts.map((product, index) => (
             <motion.div
               key={product.id}
@@ -117,49 +117,51 @@ export function PopularProducts() {
               <button
                 type="button"
                 onClick={() => navigate(`/product/new/${product.id}`)}
-                className="w-full bg-white rounded-2xl border border-border hover:border-primary hover:shadow-elevated transition-all duration-300 overflow-hidden group text-left"
+                className="w-full h-full bg-white rounded-lg sm:rounded-2xl border border-border hover:border-primary hover:shadow-elevated transition-all duration-300 overflow-hidden group text-left flex flex-col"
               >
                 {/* Image */}
-                <div className="relative aspect-square bg-secondary/20 overflow-hidden">
+                <div className="relative aspect-square bg-secondary/20 overflow-hidden w-full shrink-0">
                   {product.discount && product.originalPrice && product.originalPrice > product.price && (
-                    <div className="absolute top-2 right-2 z-10 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2 z-10 bg-red-500 text-white text-[8px] sm:text-[10px] font-bold px-1 sm:px-2 py-0.5 rounded-sm sm:rounded-full">
                       -{Math.round(product.discount)}%
                     </div>
                   )}
                   {product.rating && (
-                    <div className="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur text-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-soft">
-                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                    <div className="absolute bottom-1 left-1 sm:top-2 sm:left-2 z-10 bg-white/95 backdrop-blur text-foreground text-[8px] sm:text-[10px] font-bold px-1 sm:px-2 py-0.5 rounded-sm sm:rounded-full flex items-center gap-0.5 shadow-sm border border-neutral-100">
+                      <Star className="w-2 h-2 sm:w-2.5 sm:h-2.5 fill-amber-400 text-amber-400" />
                       {product.rating}
                     </div>
                   )}
                   <img
                     src={resolveProductImage(product)}
                     alt={product.name}
-                    className="w-full h-full object-contain p-3 transition-transform duration-500 group-hover:scale-110"
+                    className="w-full h-full object-contain p-1.5 sm:p-3 transition-transform duration-500 group-hover:scale-105"
                     onError={(e) => { e.currentTarget.src = getProductFallbackImage(); }}
                     loading="eager"
                   />
                 </div>
                 {/* Info */}
-                <div className="p-3">
-                  <h3 className="text-sm font-semibold text-foreground mb-2 line-clamp-2 leading-tight">
+                <div className="p-1.5 sm:p-3 flex flex-col flex-1 justify-between">
+                  <h3 className="text-[10px] sm:text-xs md:text-sm font-medium sm:font-semibold text-foreground mb-1 line-clamp-2 leading-tight">
                     {product.name}
                   </h3>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-base font-black text-primary">
-                      ₹{product.price.toLocaleString("en-IN")}
-                    </span>
-                    {product.discount && product.originalPrice && product.originalPrice > product.price && (
-                      <span className="text-xs text-muted-foreground line-through">
-                        ₹{Math.round(product.originalPrice).toLocaleString("en-IN")}
+                  <div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 flex-wrap">
+                      <span className="text-xs sm:text-sm md:text-base font-bold sm:font-black text-primary">
+                        ₹{product.price.toLocaleString("en-IN")}
                       </span>
+                      {product.discount && product.originalPrice && product.originalPrice > product.price && (
+                        <span className="text-[9px] sm:text-xs text-muted-foreground line-through">
+                          ₹{Math.round(product.originalPrice).toLocaleString("en-IN")}
+                        </span>
+                      )}
+                    </div>
+                    {(product.ratingsCount || product.reviewCount) && (
+                      <p className="text-[8px] sm:text-[11px] text-muted-foreground mt-0.5">
+                        ({product.ratingsCount || product.reviewCount} reviews)
+                      </p>
                     )}
                   </div>
-                  {(product.ratingsCount || product.reviewCount) && (
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      ({product.ratingsCount || product.reviewCount} reviews)
-                    </p>
-                  )}
                 </div>
               </button>
             </motion.div>

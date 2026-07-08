@@ -1,7 +1,7 @@
 const express = require("express");
 const { adminAuth } = require("../middleware/auth");
 const { productSchema } = require("../utils/validation");
-const { upload } = require("../utils/cloudinary");
+const { upload, uploadErrorHandler } = require("../utils/cloudinary");
 const prisma = require("../utils/prisma");
 const { Pool } = require("pg");
 
@@ -528,5 +528,7 @@ router.get("/dashboard/stats", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+router.use(uploadErrorHandler);
 
 module.exports = router;

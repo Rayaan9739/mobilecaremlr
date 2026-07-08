@@ -94,7 +94,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch (error) {
-        if (!userData) {
+        // The API client removes an invalid/expired token on a 401. Clear the
+        // cached identity too, otherwise protected providers keep treating the
+        // stale user as authenticated. Preserve cached auth on network errors.
+        if (!localStorage.getItem("token")) {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           setIsAuthenticated(false);

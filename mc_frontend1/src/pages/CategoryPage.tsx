@@ -193,7 +193,7 @@ export default function CategoryPage() {
     <div className="min-h-screen bg-secondary">
       <Header />
 
-      <main className="pt-32 md:pt-40 pb-16">
+      <main className="pt-48 md:pt-40 pb-16">
         <div className="container mx-auto px-4">
           {/* Breadcrumb */}
           <motion.div
@@ -217,10 +217,10 @@ export default function CategoryPage() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-1.5 md:mb-2 leading-tight">
               {hasManualFilters ? "All Products" : activeContext.label}
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm md:text-base text-muted-foreground">
               {flatProducts.length} products available
             </p>
           </motion.div>
@@ -234,13 +234,14 @@ export default function CategoryPage() {
           />
 
           <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-4">
             {flatProducts.map((product, index) => (
               <motion.div
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
+                className="h-full"
               >
                 <button
                   type="button"
@@ -249,25 +250,25 @@ export default function CategoryPage() {
                       `/product/${normalizeCategoryValue(product.category) === "mobile" ? "new" : "accessory"}/${product.id}`,
                     )
                   }
-                  className="w-full bg-white rounded-2xl border border-border hover:border-primary hover:shadow-elevated transition-all duration-300 overflow-hidden group text-left"
+                  className="w-full h-full flex flex-col bg-white rounded-lg sm:rounded-2xl border border-border hover:border-primary hover:shadow-elevated transition-all duration-300 overflow-hidden group text-left cursor-pointer"
                 >
                   {/* Image */}
-                  <div className="relative aspect-square bg-secondary/20 overflow-hidden">
+                  <div className="relative aspect-square bg-secondary/20 overflow-hidden w-full shrink-0">
                     {product.discount && product.originalPrice && product.originalPrice > product.minPrice && (
-                      <div className="absolute top-2 right-2 z-10 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      <div className="absolute top-1 right-1 z-10 bg-red-500 text-white text-[8px] sm:text-[10px] font-bold px-1 sm:px-2 py-0.5 rounded-sm sm:rounded-full">
                         -{Math.round(product.discount)}%
                       </div>
                     )}
                     {product.rating && (
-                      <div className="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur text-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-soft">
-                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                      <div className="absolute bottom-1 left-1 z-10 bg-white/95 backdrop-blur text-foreground text-[8px] sm:text-[10px] font-bold px-1 sm:px-2 py-0.5 rounded-sm sm:rounded-full flex items-center gap-0.5 shadow-sm border border-neutral-100">
+                        <Star className="w-2 h-2 sm:w-2.5 sm:h-2.5 fill-amber-400 text-amber-400" />
                         {product.rating}
                       </div>
                     )}
                     <img
                       src={resolveProductImage(product)}
                       alt={product.name}
-                      className="w-full h-full object-contain p-3 transition-transform duration-500 group-hover:scale-110"
+                      className="w-full h-full object-contain p-1.5 sm:p-3 transition-transform duration-500 group-hover:scale-105"
                       onError={(e) => {
                         e.currentTarget.src = getProductFallbackImage();
                       }}
@@ -275,16 +276,16 @@ export default function CategoryPage() {
                     />
                   </div>
                   {/* Info */}
-                  <div className="p-3">
-                    <h3 className="text-sm font-semibold text-foreground mb-2 line-clamp-2 leading-tight">
+                  <div className="p-1.5 sm:p-3 flex flex-col flex-1 justify-between">
+                    <h3 className="text-[8.5px] min-[360px]:text-[9.5px] sm:text-xs md:text-sm font-semibold text-foreground mb-1 line-clamp-2 leading-tight">
                       {product.name}
                     </h3>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-base font-black text-primary">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 flex-wrap">
+                      <span className="text-xs sm:text-sm md:text-base font-bold sm:font-black text-primary">
                         ₹{product.minPrice.toLocaleString("en-IN")}
                       </span>
                       {product.discount && product.originalPrice && product.originalPrice > product.minPrice && (
-                        <span className="text-xs text-muted-foreground line-through">
+                        <span className="text-[9px] sm:text-xs text-muted-foreground line-through font-normal">
                           ₹{Math.round(product.originalPrice).toLocaleString("en-IN")}
                         </span>
                       )}
@@ -296,8 +297,8 @@ export default function CategoryPage() {
           </div>
           </div>
 
-{/* No Results */}
-           {flatProducts.length === 0 && (
+          {/* No Results */}
+          {flatProducts.length === 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

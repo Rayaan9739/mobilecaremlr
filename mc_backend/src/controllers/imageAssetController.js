@@ -1,15 +1,12 @@
-const cloudinary = require("cloudinary").v2;
+const {
+  cloudinary,
+  uploadBufferToCloudinary,
+  isCloudinaryUploadError,
+} = require("../utils/cloudinary");
 const prisma = require("../utils/prisma");
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
 // Upload image (file or URL) and create asset record
-exports.uploadImage = async (req, res) => {
+exports.uploadImage = async (req, res, next) => {
   try {
     const { section, title, url } = req.body;
     const file = req.file;
@@ -24,23 +21,9 @@ exports.uploadImage = async (req, res) => {
 
     // If file is provided, upload to Cloudinary
     if (file) {
-      const uploadResult = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            folder: "mobile-care-assets",
-            resource_type: "image",
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          },
-        );
-
-        // Convert buffer to stream
-        const stream = require("stream");
-        const bufferStream = new stream.PassThrough();
-        bufferStream.end(file.buffer);
-        bufferStream.pipe(uploadStream);
+      const uploadResult = await uploadBufferToCloudinary(file.buffer, {
+        folder: "mobile-care-assets",
+        resource_type: "image",
       });
 
       imageUrl = uploadResult.secure_url;
@@ -111,6 +94,10 @@ exports.uploadImage = async (req, res) => {
     });
   } catch (error) {
     console.error("Image upload error:", error);
+    if (isCloudinaryUploadError(error)) {
+      next(error);
+      return;
+    }
     res.status(500).json({ error: "Upload failed" });
   }
 };

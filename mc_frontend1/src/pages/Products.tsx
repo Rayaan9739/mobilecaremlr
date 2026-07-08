@@ -110,6 +110,7 @@ export default function Products() {
   const excludeCategoryParam = searchParams.get("excludeCategory") || "";
   const minPrice = searchParams.get("minPrice");
   const maxPrice = searchParams.get("maxPrice");
+  const urlSearchQuery = searchParams.get("search") || "";
   const minPriceNum = minPrice ? Number.parseInt(minPrice) : null;
   const maxPriceNum = maxPrice ? Number.parseInt(maxPrice) : null;
   const excludedCategories = excludeCategoryParam
@@ -118,7 +119,9 @@ export default function Products() {
     .filter(Boolean);
 
   // Use activeContext for page title, but override with "All Products" if manual filters applied
-  const pageTitle = hasManualFilters ? "All Products" : activeContext.label;
+  const pageTitle = urlSearchQuery
+    ? `Search results for "${urlSearchQuery}"`
+    : hasManualFilters ? "All Products" : activeContext.label;
 
   // Extract filter options dynamically
   const filterOptions = extractFilterOptions(globalProducts);
@@ -208,6 +211,10 @@ export default function Products() {
     setHasManualFilters,
   ]);
 
+  useEffect(() => {
+    setSearchQuery(urlSearchQuery);
+  }, [urlSearchQuery, setSearchQuery]);
+
   // Apply special category filtering first, then global filters
   const filteredProducts = useMemo(() => {
     let baseProducts = globalProducts;
@@ -292,7 +299,7 @@ export default function Products() {
     }
 
     // Apply URL-based category filtering if exists and isn't 'all'
-    if (category && category !== "all") {
+    if (category && category !== "all" && normalizeCategoryValue(category) !== "accessories") {
       baseProducts = baseProducts.filter((p) => {
         const productCategory = normalizeCategoryValue(p.category);
         const targetCategory = normalizeCategoryValue(category);
@@ -371,7 +378,7 @@ export default function Products() {
     <div className="min-h-screen bg-secondary">
       <Header />
 
-      <main className="pt-32 md:pt-40 pb-16">
+      <main className="pt-48 md:pt-40 pb-16">
         <div className="container mx-auto px-4">
           {/* Breadcrumb */}
           <motion.div
@@ -400,10 +407,10 @@ export default function Products() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-1.5 md:mb-2 leading-tight">
               {pageTitle}
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm md:text-base text-muted-foreground">
               {groupedProducts.length} products available
             </p>
           </motion.div>
@@ -448,7 +455,7 @@ export default function Products() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-4">
               {groupedProducts.map((product, index) => (
                 <motion.div
                   key={product.groupId}
@@ -464,19 +471,19 @@ export default function Products() {
                         `/product/${normalizeCategoryValue(product.category) === "mobile" ? "new" : "accessory"}/${product.groupId}`,
                       )
                     }
-                    className="w-full h-full flex flex-col bg-white rounded-2xl border border-gray-200 hover:border-primary hover:shadow-lg transition-all duration-300 overflow-hidden group text-left cursor-pointer"
+                    className="w-full h-full flex flex-col bg-white rounded-lg sm:rounded-2xl border border-gray-200 hover:border-primary hover:shadow-lg transition-all duration-300 overflow-hidden group text-left cursor-pointer"
                   >
                     {/* Image Area */}
                     <div className="relative w-full bg-white overflow-hidden shrink-0" style={{ paddingBottom: "75%" }}>
-                      <div className="absolute inset-0 flex items-center justify-center p-5">
+                      <div className="absolute inset-0 flex items-center justify-center p-1.5 sm:p-5">
                         {product.discount && product.originalPrice && product.originalPrice > product.minPrice && (
-                          <div className="absolute top-2 right-2 z-30 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                            -{Math.round(product.discount)}% OFF
+                          <div className="absolute top-1 right-1 z-30 bg-red-500 text-white text-[8px] sm:text-[10px] font-bold px-1 sm:px-2 py-0.5 rounded-sm sm:rounded-full">
+                            -{Math.round(product.discount)}%
                           </div>
                         )}
                         {product.rating ? (
-                          <div className="absolute top-2 left-2 z-30 bg-white/90 backdrop-blur text-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-                            <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                          <div className="absolute bottom-1 left-1 z-30 bg-white/95 backdrop-blur text-foreground text-[8px] sm:text-[10px] font-bold px-1 sm:px-2 py-0.5 rounded-sm sm:rounded-full flex items-center gap-0.5 shadow-sm border border-neutral-100">
+                            <Star className="w-2 h-2 sm:w-2.5 sm:h-2.5 fill-amber-400 text-amber-400" />
                             {product.rating}
                           </div>
                         ) : null}
@@ -492,27 +499,37 @@ export default function Products() {
                       </div>
                     </div>
                     {/* Info */}
-                    <div className="p-4 flex flex-col flex-1 border-t border-gray-100">
-                      <h3 className="text-xs font-bold text-gray-800 mb-2 line-clamp-2 leading-snug uppercase tracking-wide flex-1">
+                    <div className="p-1.5 sm:p-4 flex flex-col flex-1 border-t border-gray-100 justify-between">
+                      <h3 className="text-[8.5px] min-[360px]:text-[9.5px] sm:text-xs md:text-sm font-semibold sm:font-bold text-gray-800 mb-1 line-clamp-2 leading-snug uppercase">
                         {product.name}
                       </h3>
-                      <div className="flex items-center gap-2 flex-wrap mt-2">
-                        {product.discount &&
-                          product.originalPrice &&
-                          product.originalPrice > product.minPrice && (
-                            <span className="text-muted-foreground text-xs line-through">
-                              ₹{Math.round(product.originalPrice).toLocaleString("en-IN")}
-                            </span>
-                          )}
-                        <span className="text-primary font-black text-base">
-                          ₹{product.minPrice.toLocaleString()}
-                        </span>
+                      <div>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 flex-wrap">
+                          <span className="text-primary font-bold sm:font-black text-[10px] sm:text-base">
+                            ₹{product.minPrice.toLocaleString()}
+                          </span>
+                          {product.discount &&
+                            product.originalPrice &&
+                            product.originalPrice > product.minPrice && (
+                              <span className="text-muted-foreground text-[8px] sm:text-xs line-through">
+                                ₹{Math.round(product.originalPrice).toLocaleString("en-IN")}
+                              </span>
+                            )}
+                        </div>
+                        {product.colorOptions?.length > 0 && (
+                          <span className="text-[8px] sm:text-[10px] text-muted-foreground mt-1 block">
+                            {product.colorOptions
+                              .slice(0, 3)
+                              .map((option: any) =>
+                                typeof option === "string"
+                                  ? option
+                                  : String(option?.name || option?.color || ""),
+                              )
+                              .filter(Boolean)
+                              .join(" • ")}
+                          </span>
+                        )}
                       </div>
-                      {product.colorOptions?.length > 0 && (
-                        <span className="text-[10px] text-muted-foreground mt-1">
-                          {product.colorOptions.slice(0, 3).join(" • ")}
-                        </span>
-                      )}
                     </div>
                   </button>
                 </motion.div>
